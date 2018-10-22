@@ -25,6 +25,7 @@ func main() {
 
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         requestId := uuid.Must(uuid.NewV4()).String()
+        w.Header().Set("X-Request-Id", requestId)
 
         switch r.Method {
             case http.MethodPost:
