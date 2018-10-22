@@ -28,6 +28,11 @@ func main() {
 
         switch r.Method {
             case http.MethodPost:
+                if _, exists := mounts[r.URL.Path]; exists {
+                    w.WriteHeader(http.StatusConflict)
+                    return
+                }
+
                 mounts[r.URL.Path] = Mountpoint{requestId, make(map[string]Client)}
                 log.Println("Mountpoint connected:", r.URL.Path)
 
