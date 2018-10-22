@@ -25,7 +25,6 @@ func main() {
 
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         requestId := uuid.Must(uuid.NewV4()).String()
-        fmt.Println(requestId)
 
         switch r.Method {
             case http.MethodPost:
@@ -48,14 +47,21 @@ func main() {
                     cancel()
                 }
 
-            case http.MethodGet:
-                w.Header().Set("X-Content-Type-Options", "nosniff")
-                mounts[r.URL.Path].Clients[requestId] = Client{requestId, w, r}
-                log.Println("Accepted Client on mountpoint", r.URL.Path)
+                delete(mounts, r.URL.Path)
 
-                <-r.Context().Done()
-                delete(mounts[r.URL.Path].Clients, requestId)
-                log.Println("Client disconnected")
+            case http.MethodGet:
+                if mount, exists := mounts[r.URL.Path]; exists {
+                    w.Header().Set("X-Content-Type-Options", "nosniff")
+                    mount.Clients[requestId] = Client{requestId, w, r}
+                    log.Println("Accepted Client on mountpoint", r.URL.Path)
+
+                    <-r.Context().Done()
+                    delete(mount.Clients, requestId)
+
+                    log.Println("Client disconnected")
+                } else {
+                    w.WriteHeader(http.StatusNotFound)
+                }
 
             default:
                 w.WriteHeader(http.StatusNotImplemented)
