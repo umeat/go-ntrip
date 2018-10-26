@@ -1,2 +1,2 @@
-# ntripcaster
-NTRIP Caster implementation in Go
+# ntrip
+NTRIP Caster / Client / Server implementation in Go
