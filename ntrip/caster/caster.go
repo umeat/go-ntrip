@@ -63,7 +63,6 @@ func main() {
 
                     <-r.Context().Done()
                     delete(mount.Clients, requestId)
-
                     log.Println("Client disconnected")
                 } else {
                     w.WriteHeader(http.StatusNotFound)
@@ -74,5 +73,5 @@ func main() {
         }
     })
 
-    log.Fatal(http.ListenAndServe(":2101", nil))
+    log.Fatal(http.ListenAndServe(":2103", nil))
 }
