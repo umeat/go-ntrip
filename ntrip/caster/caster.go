@@ -78,6 +78,7 @@ func main() {
                 for _, client := range mount.Clients {
                     client.Cancel()
                 }
+                mount.Mutex.Unlock()
 
                 delete(mounts, r.URL.Path)
 
