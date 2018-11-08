@@ -7,12 +7,12 @@ import (
     "context"
     "github.com/satori/go.uuid"
     "sync"
-    "encoding/json"
+//    "encoding/json"
 )
 
 type Client struct {
     Id string
-    Writer http.ResponseWriter
+    Writer chan
     Request *http.Request
     Cancel context.CancelFunc
 }
@@ -36,12 +36,11 @@ func (mount *Mountpoint) DeleteClient(id string) {
 }
 
 func (mount *Mountpoint) Write(data []byte) {
-    mount.Lock()
+    mount.RLock()
     for _, client := range mount.Clients {
-        fmt.Fprintf(client.Writer, "%s", data)
-        client.Writer.(http.Flusher).Flush()
+        client.Channel <- data
     }
-    mount.Unlock()
+    mount.RUnlock()
 }
 
 type MountpointCollection struct {
@@ -72,10 +71,6 @@ func (m MountpointCollection) GetMountpoint(id string) (mount *Mountpoint, ok bo
 
 func main() {
     mounts := MountpointCollection{mounts: make(map[string]*Mountpoint)}
-
-    http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
-        fmt.Fprintf(w, "%s", json.Marshall(mounts))
-    })
 
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         requestId := uuid.Must(uuid.NewV4()).String()
@@ -116,11 +111,15 @@ func main() {
                 if mount, exists := mounts.GetMountpoint(r.URL.Path); exists {
                     w.Header().Set("X-Content-Type-Options", "nosniff")
                     ctx, cancel := context.WithCancel(r.Context())
-                    client := Client{requestId, w, r, cancel}
+                    client := Client{requestId, make(chan []byte), r, cancel}
                     mount.AddClient(&client)
                     log.Println("Accepted Client on mountpoint", r.URL.Path)
 
-                    <-ctx.Done()
+                    for ctx.Err() != context.Canceled {
+                        data <- client.Channel
+                        fmt.Fprintf(w, "%s", data)
+                        w.(http.Flusher).Flush()
+                    }
                     mount.DeleteClient(requestId)
                     log.Println("Client disconnected")
                 } else {
