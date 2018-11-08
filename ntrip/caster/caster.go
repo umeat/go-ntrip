@@ -38,7 +38,12 @@ func (mount *Mountpoint) DeleteClient(id string) {
 func (mount *Mountpoint) Write(data []byte) {
     mount.RLock()
     for _, client := range mount.Clients {
-        client.Channel <- data
+        select {
+            case client.Channel <- data:
+                continue
+            default:
+                continue
+        }
     }
     mount.RUnlock()
 }
@@ -115,19 +120,13 @@ func main() {
                     mount.AddClient(&client)
                     log.Println("Accepted Client on mountpoint", r.URL.Path)
 
-                    for {
-                        select {
-                            case: <-ctx.Done():
-                                mount.DeleteClient(requestId)
-                                log.Println("Client disconnected")
-                                return
-
-                            default:
-                                data := <-client.Channel
-                                fmt.Fprintf(w, "%s", data)
-                                w.(http.Flusher).Flush()
-                        }
+                    for ctx.Err() != context.Canceled {
+                        data := <-client.Channel
+                        fmt.Fprintf(w, "%s", data)
+                        w.(http.Flusher).Flush()
                     }
+                    mount.DeleteClient(requestId)
+                    log.Println("Client disconnected")
                 } else {
                     w.WriteHeader(http.StatusNotFound)
                 }
