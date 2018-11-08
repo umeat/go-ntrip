@@ -7,6 +7,7 @@ import (
     "context"
     "github.com/satori/go.uuid"
     "sync"
+    "encoding/json"
 )
 
 type Client struct {
@@ -71,6 +72,10 @@ func (m MountpointCollection) GetMountpoint(id string) (mount *Mountpoint, ok bo
 
 func main() {
     mounts := MountpointCollection{mounts: make(map[string]*Mountpoint)}
+
+    http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
+        fmt.Fprintf(w, "%s", json.Marshall(mounts))
+    })
 
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         requestId := uuid.Must(uuid.NewV4()).String()
