@@ -45,7 +45,7 @@ func (mount *Mountpoint) Write(data []byte) {
             wg.Done()
         }()
     }
-    wg.Done()
+    wg.Wait()
     mount.Unlock()
 }
 
