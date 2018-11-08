@@ -4,7 +4,6 @@ import (
     "fmt"
     "net/http"
     "log"
-    "bufio"
     "context"
     "github.com/satori/go.uuid"
     "sync"
@@ -38,10 +37,8 @@ func (mount *Mountpoint) DeleteClient(id string) {
 func (mount *Mountpoint) Write(data []byte) {
     mount.Lock()
     for _, client := range mount.Clients {
-        go func() {
-            fmt.Fprintf(client.Writer, "%s", data)
-            client.Writer.(http.Flusher).Flush()
-        }()
+        fmt.Fprintf(client.Writer, "%s", data)
+        client.Writer.(http.Flusher).Flush()
     }
     mount.Unlock()
 }
@@ -78,6 +75,8 @@ func main() {
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         requestId := uuid.Must(uuid.NewV4()).String()
         w.Header().Set("X-Request-Id", requestId)
+        w.Header().Set("Ntrip-Version", "Ntrip/2.0")
+        w.Header().Set("Server", "NTRIP GoCaster")
 
         switch r.Method {
             case http.MethodPost:
@@ -89,10 +88,11 @@ func main() {
                 mount := mounts.NewMountpoint(r.URL.Path)
                 log.Println("Mountpoint connected:", r.URL.Path)
 
-                reader := bufio.NewReader(r.Body)
-                data, err := reader.ReadBytes('\n')
-                for ; err == nil; data, err = reader.ReadBytes('\n') {
+                data := make([]byte, 1024)
+                _, err := r.Body.Read(data)
+                for ; err == nil; _, err = r.Body.Read(data) {
                     mount.Write(data)
+                    data = make([]byte, 1024)
                 }
 
                 log.Println("Mountpoint disconnected:", r.URL.Path, err)
