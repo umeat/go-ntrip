@@ -86,6 +86,8 @@ func main() {
                 }
 
                 mount := mounts.NewMountpoint(r.URL.Path)
+                fmt.Fprintf(w, "\r\n")
+                w.(http.Flusher).Flush()
                 log.Println("Mountpoint connected:", r.URL.Path)
 
                 data := make([]byte, 1024)
