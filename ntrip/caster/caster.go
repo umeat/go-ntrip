@@ -12,7 +12,7 @@ import (
 
 type Client struct {
     Id string
-    Writer chan
+    Channel chan []byte
     Request *http.Request
     Cancel context.CancelFunc
 }
@@ -115,11 +115,14 @@ func main() {
                     mount.AddClient(&client)
                     log.Println("Accepted Client on mountpoint", r.URL.Path)
 
-                    for ctx.Err() != context.Canceled {
-                        data <- client.Channel
-                        fmt.Fprintf(w, "%s", data)
-                        w.(http.Flusher).Flush()
-                    }
+                    go func() {
+                        for {
+                            data := <-client.Channel
+                            fmt.Fprintf(w, "%s", data)
+                            w.(http.Flusher).Flush()
+                        }
+                    }()
+                    <-ctx.Done()
                     mount.DeleteClient(requestId)
                     log.Println("Client disconnected")
                 } else {
