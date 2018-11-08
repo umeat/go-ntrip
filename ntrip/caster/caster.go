@@ -38,8 +38,10 @@ func (mount *Mountpoint) DeleteClient(id string) {
 func (mount *Mountpoint) Write(data []byte) {
     mount.Lock()
     for _, client := range mount.Clients {
-        fmt.Fprintf(client.Writer, "%s", data)
-        client.Writer.(http.Flusher).Flush()
+        go func() {
+            fmt.Fprintf(client.Writer, "%s", data)
+            client.Writer.(http.Flusher).Flush()
+        }()
     }
     mount.Unlock()
 }
