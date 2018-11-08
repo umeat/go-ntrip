@@ -18,38 +18,60 @@ type Client struct {
 }
 
 type Mountpoint struct {
+    sync.RWMutex
     Id string
-    Mutex *sync.Mutex
-    Clients map[string]Client
+    Clients map[string]*Client
 }
 
-func NewMountpoint(id string) Mountpoint {
-    return Mountpoint{id, &sync.Mutex{}, make(map[string]Client)}
-}
-
-func (mount *Mountpoint) AddClient(client Client) {
-    mount.Mutex.Lock()
+func (mount *Mountpoint) AddClient(client *Client) {
+    mount.Lock()
     mount.Clients[client.Id] = client
-    mount.Mutex.Unlock()
+    mount.Unlock()
 }
 
 func (mount *Mountpoint) DeleteClient(id string) {
-    mount.Mutex.Lock()
+    mount.Lock()
     delete(mount.Clients, id)
-    mount.Mutex.Unlock()
+    mount.Unlock()
 }
 
 func (mount *Mountpoint) Write(data []byte) {
-    mount.Mutex.Lock()
+    mount.Lock()
     for _, client := range mount.Clients {
         fmt.Fprintf(client.Writer, "%s", data)
         client.Writer.(http.Flusher).Flush()
     }
-    mount.Mutex.Unlock()
+    mount.Unlock()
+}
+
+type MountpointCollection struct {
+    sync.RWMutex
+    mounts map[string]*Mountpoint
+}
+
+func (m MountpointCollection) NewMountpoint(id string) (mount *Mountpoint) {
+    mount = &Mountpoint{Id: id, Clients: make(map[string]*Client)}
+    m.Lock()
+    m.mounts[id] = mount
+    m.Unlock()
+    return mount
+}
+
+func (m MountpointCollection) DeleteMountpoint(id string) {
+    m.Lock()
+    delete(m.mounts, id)
+    m.Unlock()
+}
+
+func (m MountpointCollection) GetMountpoint(id string) (mount *Mountpoint, ok bool) {
+    m.RLock()
+    mount, ok = m.mounts[id]
+    m.RUnlock()
+    return mount, ok
 }
 
 func main() {
-    mounts := make(map[string]*Mountpoint)
+    mounts := MountpointCollection{mounts: make(map[string]*Mountpoint)}
 
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         requestId := uuid.Must(uuid.NewV4()).String()
@@ -57,13 +79,12 @@ func main() {
 
         switch r.Method {
             case http.MethodPost:
-                if _, exists := mounts[r.URL.Path]; exists {
+                if _, exists := mounts.GetMountpoint(r.URL.Path); exists {
                     w.WriteHeader(http.StatusConflict)
                     return
                 }
 
-                mount := NewMountpoint(requestId)
-                mounts[r.URL.Path] = &mount
+                mount := mounts.NewMountpoint(r.URL.Path)
                 log.Println("Mountpoint connected:", r.URL.Path)
 
                 reader := bufio.NewReader(r.Body)
@@ -74,19 +95,20 @@ func main() {
 
                 log.Println("Mountpoint disconnected:", r.URL.Path, err)
 
-                mount.Mutex.Lock()
+                mount.Lock()
                 for _, client := range mount.Clients {
                     client.Cancel()
                 }
-                mount.Mutex.Unlock()
+                mount.Unlock()
 
-                delete(mounts, r.URL.Path)
+                mounts.DeleteMountpoint(r.URL.Path)
 
             case http.MethodGet:
-                if mount, exists := mounts[r.URL.Path]; exists {
+                if mount, exists := mounts.GetMountpoint(r.URL.Path); exists {
                     w.Header().Set("X-Content-Type-Options", "nosniff")
                     ctx, cancel := context.WithCancel(r.Context())
-                    mount.AddClient(Client{requestId, w, r, cancel})
+                    client := Client{requestId, w, r, cancel}
+                    mount.AddClient(&client)
                     log.Println("Accepted Client on mountpoint", r.URL.Path)
 
                     <-ctx.Done()
