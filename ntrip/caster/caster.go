@@ -36,11 +36,17 @@ func (mount *Mountpoint) DeleteClient(id string) {
 
 func (mount *Mountpoint) Write(data []byte) {
     mount.Lock()
+    var wg sync.WaitGroup
     for _, client := range mount.Clients {
-        fmt.Fprintf(client.Writer, "%s", data)
-        client.Writer.(http.Flusher).Flush()
+        wg.Add(1)
+        go func() {
+            fmt.Fprintf(client.Writer, "%s", data)
+            client.Writer.(http.Flusher).Flush()
+        }()
+        wg.Done()
     }
     mount.Unlock()
+    wg.Wait()
 }
 
 type MountpointCollection struct {
