@@ -91,8 +91,7 @@ func main() {
                 log.Println("Mountpoint connected:", r.URL.Path)
 
                 data := make([]byte, 1024)
-                _, err := r.Body.Read(data)
-                for ; err == nil; _, err = r.Body.Read(data) {
+                for _, err := r.Body.Read(data); err == nil; _, err = r.Body.Read(data) {
                     mount.Write(data)
                     data = make([]byte, 1024)
                 }
