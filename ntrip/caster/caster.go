@@ -115,16 +115,19 @@ func main() {
                     mount.AddClient(&client)
                     log.Println("Accepted Client on mountpoint", r.URL.Path)
 
-                    go func() {
-                        for {
-                            data := <-client.Channel
-                            fmt.Fprintf(w, "%s", data)
-                            w.(http.Flusher).Flush()
+                    for {
+                        select {
+                            case: <-ctx.Done():
+                                mount.DeleteClient(requestId)
+                                log.Println("Client disconnected")
+                                return
+
+                            default:
+                                data := <-client.Channel
+                                fmt.Fprintf(w, "%s", data)
+                                w.(http.Flusher).Flush()
                         }
-                    }()
-                    <-ctx.Done()
-                    mount.DeleteClient(requestId)
-                    log.Println("Client disconnected")
+                    }
                 } else {
                     w.WriteHeader(http.StatusNotFound)
                 }
