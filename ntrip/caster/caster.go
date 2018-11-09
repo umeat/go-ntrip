@@ -38,12 +38,7 @@ func (mount *Mountpoint) DeleteClient(id string) {
 func (mount *Mountpoint) Write(data []byte) {
     mount.RLock()
     for _, client := range mount.Clients {
-        select {
-            case client.Channel <- data:
-                continue
-            default:
-                continue
-        }
+        client.Channel <- data
     }
     mount.RUnlock()
 }
@@ -116,7 +111,7 @@ func main() {
                 if mount, exists := mounts.GetMountpoint(r.URL.Path); exists {
                     w.Header().Set("X-Content-Type-Options", "nosniff")
                     ctx, cancel := context.WithCancel(r.Context())
-                    client := Client{requestId, make(chan []byte), r, cancel}
+                    client := Client{requestId, make(chan []byte, 5), r, cancel}
                     mount.AddClient(&client)
                     log.Println("Accepted Client on mountpoint", r.URL.Path)
 
