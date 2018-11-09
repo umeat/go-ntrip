@@ -1,4 +1,4 @@
-package main
+package caster
 
 import (
     "fmt"
@@ -6,72 +6,48 @@ import (
     "log"
     "context"
     "github.com/satori/go.uuid"
-    "sync"
-    "errors"
 )
 
-type Client struct {
-    Id string
-    Channel chan []byte
-    Cancel context.CancelFunc
-}
+func ServeMountpoint(mount *Mountpoint) { // Should this be a method of Mountpoint?
+    fmt.Fprintf(mount.Source.Writer, "\r\n")
+    mount.Source.Writer.(http.Flusher).Flush()
+    log.Println("Mountpoint connected:", mount.Source.Request.URL.Path)
 
-type Mountpoint struct {
-    sync.RWMutex
-    Path string
-    Clients map[string]*Client
-}
+    buf := make([]byte, 1024)
+    _, err := mount.Source.Request.Body.Read(buf)
+    for ; err == nil; _, err = mount.Source.Request.Body.Read(buf) {
+        mount.Write(buf)
+        buf = make([]byte, 1024)
+    }
 
-func (mount *Mountpoint) AddClient(client *Client) {
+    log.Println("Mountpoint disconnected:", mount.Source.Request.URL.Path, err)
+
     mount.Lock()
-    mount.Clients[client.Id] = client
-    mount.Unlock()
-}
-
-func (mount *Mountpoint) DeleteClient(id string) {
-    mount.Lock()
-    delete(mount.Clients, id)
-    mount.Unlock()
-}
-
-func (mount *Mountpoint) Write(data []byte) {
-    mount.RLock()
     for _, client := range mount.Clients {
-        client.Channel <- data // Can this blow up?
+        client.Cancel()
     }
-    mount.RUnlock()
+    mount.Unlock()
 }
 
-type MountpointCollection struct {
-    sync.RWMutex
-    mounts map[string]*Mountpoint
-}
+func ServeClient(client *Client) {
+    client.Writer.Header().Set("X-Content-Type-Options", "nosniff")
+    log.Println("Accepted Client on mountpoint", client.Request.URL.Path)
 
-func (m MountpointCollection) NewMountpoint(path string) (mount *Mountpoint, err error) {
-    m.Lock()
-    if _, ok := m.mounts[path]; ok {
-        return mount, errors.New("Mountpoint in use")
+    for Client.Context.Err() != context.Canceled {
+        select {
+            case data := <-client.Channel:
+                fmt.Fprintf(client.Writer, "%s", data)
+                client.Writer.(http.Flusher).Flush()
+            default:
+                break
+        }
     }
-    mount = &Mountpoint{Path: path, Clients: make(map[string]*Client)}
-    m.mounts[path] = mount
-    m.Unlock()
-    return mount, nil
+
+    mount.DeleteClient(requestId)
+    log.Println("Client disconnected", client.Id)
 }
 
-func (m MountpointCollection) DeleteMountpoint(id string) {
-    m.Lock()
-    delete(m.mounts, id)
-    m.Unlock()
-}
-
-func (m MountpointCollection) GetMountpoint(id string) (mount *Mountpoint, ok bool) {
-    m.RLock()
-    mount, ok = m.mounts[id]
-    m.RUnlock()
-    return mount, ok
-}
-
-func main() {
+func Serve() {
     mounts := MountpointCollection{mounts: make(map[string]*Mountpoint)}
 
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -80,57 +56,25 @@ func main() {
         w.Header().Set("Ntrip-Version", "Ntrip/2.0")
         w.Header().Set("Server", "NTRIP GoCaster")
 
+        ctx, cancel := context.WithCancel(r.Context())
+        // Not sure how large to make the buffered channel
+        client := Client{requestId, make(chan []byte, 5), r, w, ctx, cancel}
+
         switch r.Method {
             case http.MethodPost:
-                mount, err := mounts.NewMountpoint(r.URL.Path)
+                mount, err := mounts.NewMountpoint(client)
                 if err != nil {
                     w.WriteHeader(http.StatusConflict)
                     return
                 }
 
-                fmt.Fprintf(w, "\r\n")
-                w.(http.Flusher).Flush()
-                log.Println("Mountpoint connected:", r.URL.Path)
-
-                data := make([]byte, 1024)
-                _, err = r.Body.Read(data)
-                for ; err == nil; _, err = r.Body.Read(data) {
-                    mount.Write(data)
-                    data = make([]byte, 1024)
-                }
-
-                log.Println("Mountpoint disconnected:", r.URL.Path, err)
-
-                mount.Lock()
-                for _, client := range mount.Clients {
-                    client.Cancel()
-                }
-                mount.Unlock()
-
+                ServeMountpoint(mount)
                 mounts.DeleteMountpoint(r.URL.Path)
 
             case http.MethodGet:
                 if mount, exists := mounts.GetMountpoint(r.URL.Path); exists {
-                    w.Header().Set("X-Content-Type-Options", "nosniff")
-                    ctx, cancel := context.WithCancel(r.Context())
-
-                    // Not sure how large to make the buffered channel
-                    client := Client{requestId, make(chan []byte, 5), cancel}
-                    mount.AddClient(&client)
-                    log.Println("Accepted Client on mountpoint", r.URL.Path)
-
-                    for ctx.Err() != context.Canceled {
-                        select {
-                            case data := <-client.Channel:
-                                fmt.Fprintf(w, "%s", data)
-                                w.(http.Flusher).Flush()
-                            default:
-                                break
-                        }
-                    }
-
-                    mount.DeleteClient(requestId)
-                    log.Println("Client disconnected", client.Id)
+                    mount.AddClient(&client) // Can this fail?
+                    ServeClient(&client)
                 } else {
                     w.WriteHeader(http.StatusNotFound)
                 }
