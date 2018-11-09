@@ -7,6 +7,7 @@ import (
     "context"
     "github.com/satori/go.uuid"
     "sync"
+    "errors"
 )
 
 type Client struct {
@@ -48,7 +49,7 @@ type MountpointCollection struct {
 
 func (m MountpointCollection) NewMountpoint(path string) (mount *Mountpoint, err error) {
     m.Lock()
-    if _, ok := m.mounts[path] {
+    if _, ok := m.mounts[path]; ok {
         return mount, errors.New("Mountpoint in use")
     }
     mount = &Mountpoint{Path: path, Clients: make(map[string]*Client)}
@@ -92,7 +93,7 @@ func main() {
                 log.Println("Mountpoint connected:", r.URL.Path)
 
                 data := make([]byte, 1024)
-                _, err := r.Body.Read(data)
+                _, err = r.Body.Read(data)
                 for ; err == nil; _, err = r.Body.Read(data) {
                     mount.Write(data)
                     data = make([]byte, 1024)
