@@ -120,9 +120,13 @@ func main() {
                     log.Println("Accepted Client on mountpoint", r.URL.Path)
 
                     for ctx.Err() != context.Canceled {
-                        data := <-client.Channel
-                        fmt.Fprintf(w, "%s", data)
-                        w.(http.Flusher).Flush()
+                        select {
+                            case data := <-client.Channel:
+                                fmt.Fprintf(w, "%s", data)
+                                w.(http.Flusher).Flush()
+                            default:
+                                break
+                        }
                     }
 
                     mount.DeleteClient(requestId)
