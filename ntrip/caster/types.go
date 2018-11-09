@@ -52,16 +52,10 @@ func (mount *Mountpoint) DeleteClient(id string) {
 }
 
 func (mount *Mountpoint) Broadcast(data []byte) {
-    var wg sync.WaitGroup
     mount.RLock()
     for _, client := range mount.Clients {
-        wg.Add(1)
-        go func() {
-            client.Channel <- data // Can this blow up?
-            wg.Done()
-        }()
+        client.Channel <- data // Can this blow up?
     }
-    wg.Wait()
     mount.RUnlock()
 }
 
