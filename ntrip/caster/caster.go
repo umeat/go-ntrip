@@ -7,19 +7,17 @@ import (
     "context"
     "github.com/satori/go.uuid"
     "sync"
-//    "encoding/json"
 )
 
 type Client struct {
     Id string
     Channel chan []byte
-    Request *http.Request
     Cancel context.CancelFunc
 }
 
 type Mountpoint struct {
     sync.RWMutex
-    Id string
+    Path string
     Clients map[string]*Client
 }
 
@@ -38,7 +36,7 @@ func (mount *Mountpoint) DeleteClient(id string) {
 func (mount *Mountpoint) Write(data []byte) {
     mount.RLock()
     for _, client := range mount.Clients {
-        client.Channel <- data
+        client.Channel <- data // Can this blow up?
     }
     mount.RUnlock()
 }
@@ -48,12 +46,15 @@ type MountpointCollection struct {
     mounts map[string]*Mountpoint
 }
 
-func (m MountpointCollection) NewMountpoint(id string) (mount *Mountpoint) {
-    mount = &Mountpoint{Id: id, Clients: make(map[string]*Client)}
+func (m MountpointCollection) NewMountpoint(path string) (mount *Mountpoint, err error) {
     m.Lock()
-    m.mounts[id] = mount
+    if _, ok := m.mounts[path] {
+        return mount, errors.New("Mountpoint in use")
+    }
+    mount = &Mountpoint{Path: path, Clients: make(map[string]*Client)}
+    m.mounts[path] = mount
     m.Unlock()
-    return mount
+    return mount, nil
 }
 
 func (m MountpointCollection) DeleteMountpoint(id string) {
@@ -80,12 +81,12 @@ func main() {
 
         switch r.Method {
             case http.MethodPost:
-                if _, exists := mounts.GetMountpoint(r.URL.Path); exists {
+                mount, err := mounts.NewMountpoint(r.URL.Path)
+                if err != nil {
                     w.WriteHeader(http.StatusConflict)
                     return
                 }
 
-                mount := mounts.NewMountpoint(r.URL.Path)
                 fmt.Fprintf(w, "\r\n")
                 w.(http.Flusher).Flush()
                 log.Println("Mountpoint connected:", r.URL.Path)
@@ -111,7 +112,9 @@ func main() {
                 if mount, exists := mounts.GetMountpoint(r.URL.Path); exists {
                     w.Header().Set("X-Content-Type-Options", "nosniff")
                     ctx, cancel := context.WithCancel(r.Context())
-                    client := Client{requestId, make(chan []byte, 5), r, cancel}
+
+                    // Not sure how large to make the buffered channel
+                    client := Client{requestId, make(chan []byte, 5), cancel}
                     mount.AddClient(&client)
                     log.Println("Accepted Client on mountpoint", r.URL.Path)
 
@@ -120,8 +123,9 @@ func main() {
                         fmt.Fprintf(w, "%s", data)
                         w.(http.Flusher).Flush()
                     }
+
                     mount.DeleteClient(requestId)
-                    log.Println("Client disconnected")
+                    log.Println("Client disconnected", client.Id)
                 } else {
                     w.WriteHeader(http.StatusNotFound)
                 }
