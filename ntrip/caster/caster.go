@@ -8,43 +8,22 @@ import (
     "github.com/satori/go.uuid"
 )
 
-func ServeMountpoint(mount *Mountpoint) { // Should this be a method of Mountpoint?
+func (mount *Mountpoint) BroadcastStream() { // Should this be a method of Mountpoint?
     fmt.Fprintf(mount.Source.Writer, "\r\n")
     mount.Source.Writer.(http.Flusher).Flush()
-    log.Println("Mountpoint connected:", mount.Source.Request.URL.Path)
 
     buf := make([]byte, 1024)
     _, err := mount.Source.Request.Body.Read(buf)
     for ; err == nil; _, err = mount.Source.Request.Body.Read(buf) {
-        mount.Write(buf)
+        mount.Broadcast(buf)
         buf = make([]byte, 1024)
     }
-
-    log.Println("Mountpoint disconnected:", mount.Source.Request.URL.Path, err)
 
     mount.Lock()
     for _, client := range mount.Clients {
         client.Cancel()
     }
     mount.Unlock()
-}
-
-func ServeClient(client *Client) {
-    client.Writer.Header().Set("X-Content-Type-Options", "nosniff")
-    log.Println("Accepted Client on mountpoint", client.Request.URL.Path)
-
-    for Client.Context.Err() != context.Canceled {
-        select {
-            case data := <-client.Channel:
-                fmt.Fprintf(client.Writer, "%s", data)
-                client.Writer.(http.Flusher).Flush()
-            default:
-                break
-        }
-    }
-
-    mount.DeleteClient(requestId)
-    log.Println("Client disconnected", client.Id)
 }
 
 func Serve() {
@@ -68,13 +47,18 @@ func Serve() {
                     return
                 }
 
-                ServeMountpoint(mount)
-                mounts.DeleteMountpoint(r.URL.Path)
+                log.Println("Mountpoint connected:", mount.Source.Request.URL.Path)
+                mount.BroadcastStream()
+                log.Println("Mountpoint disconnected:", mount.Source.Request.URL.Path, err)
+                mounts.DeleteMountpoint(mount.Source.Request.URL.Path)
 
             case http.MethodGet:
                 if mount, exists := mounts.GetMountpoint(r.URL.Path); exists {
                     mount.AddClient(&client) // Can this fail?
-                    ServeClient(&client)
+                    log.Println("Accepted Client on mountpoint", client.Request.URL.Path)
+                    client.Listen()
+                    log.Println("Client disconnected", client.Id)
+                    mount.DeleteClient(client.Id)
                 } else {
                     w.WriteHeader(http.StatusNotFound)
                 }

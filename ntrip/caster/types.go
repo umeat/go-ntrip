@@ -5,6 +5,7 @@ import (
     "sync"
     "context"
     "net/http"
+    "fmt"
 )
 
 type Client struct {
@@ -14,6 +15,20 @@ type Client struct {
     Writer http.ResponseWriter
     Context context.Context
     Cancel context.CancelFunc
+}
+
+func (client *Client) Listen() {
+    client.Writer.Header().Set("X-Content-Type-Options", "nosniff")
+
+    for client.Context.Err() != context.Canceled {
+        select {
+            case data := <-client.Channel:
+                fmt.Fprintf(client.Writer, "%s", data)
+                client.Writer.(http.Flusher).Flush()
+            default:
+                break
+        }
+    }
 }
 
 
@@ -36,11 +51,17 @@ func (mount *Mountpoint) DeleteClient(id string) {
     mount.Unlock()
 }
 
-func (mount *Mountpoint) Write(data []byte) {
+func (mount *Mountpoint) Broadcast(data []byte) {
+    var wg sync.WaitGroup
     mount.RLock()
     for _, client := range mount.Clients {
-        client.Channel <- data // Can this blow up?
+        wg.Add(1)
+        go func() {
+            client.Channel <- data // Can this blow up?
+            wg.Done()
+        }()
     }
+    wg.Wait()
     mount.RUnlock()
 }
 
