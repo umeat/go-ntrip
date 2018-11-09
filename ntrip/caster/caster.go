@@ -8,7 +8,7 @@ import (
     "github.com/satori/go.uuid"
 )
 
-func (mount *Mountpoint) BroadcastStream() { // Should this be a method of Mountpoint?
+func (mount *Mountpoint) BroadcastStream() { // needs a better name
     fmt.Fprintf(mount.Source.Writer, "\r\n")
     mount.Source.Writer.(http.Flusher).Flush()
 
@@ -54,7 +54,7 @@ func Serve() {
 
             case http.MethodGet:
                 if mount, exists := mounts.GetMountpoint(r.URL.Path); exists {
-                    mount.AddClient(&client) // Can this fail?
+                    mount.AddClient(&client)
                     log.Println("Accepted Client on mountpoint", client.Request.URL.Path)
                     client.Listen()
                     log.Println("Client disconnected", client.Id)
