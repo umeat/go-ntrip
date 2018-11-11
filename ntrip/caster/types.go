@@ -53,11 +53,11 @@ func (mount *Mountpoint) DeleteClient(id string) {
 
 func (mount *Mountpoint) Broadcast() { // needs a better name
     buf := make([]byte, 1024)
-    _, err := mount.Source.Request.Body.Read(buf)
-    for ; err == nil; _, err = mount.Source.Request.Body.Read(buf) {
+    nbytes, err := mount.Source.Request.Body.Read(buf)
+    for ; err == nil; nbytes, err = mount.Source.Request.Body.Read(buf) {
         mount.RLock()
         for _, client := range mount.Clients {
-            client.Channel <- buf // Can this blow up?
+            client.Channel <- buf[:nbytes] // Can this blow up?
         }
         mount.RUnlock()
         buf = make([]byte, 1024)
