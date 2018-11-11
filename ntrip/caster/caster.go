@@ -1,6 +1,7 @@
 package caster
 
 import (
+    "fmt"
     "net/http"
     "log"
     "context"
@@ -18,7 +19,7 @@ func Serve() {
 
         ctx, cancel := context.WithCancel(r.Context())
         // Not sure how large to make the buffered channel
-        client := Client{requestId, make(chan []byte, 5), r, w, ctx, cancel}
+        client := Connection{requestId, make(chan []byte, 5), r, w, ctx, cancel}
 
         switch r.Method {
             case http.MethodPost:
@@ -29,7 +30,10 @@ func Serve() {
                 }
 
                 log.Println("Mountpoint connected:", mount.Source.Request.URL.Path)
+                fmt.Fprintf(mount.Source.Writer, "\r\n")
+                mount.Source.Writer.(http.Flusher).Flush()
                 mount.Broadcast()
+
                 log.Println("Mountpoint disconnected:", mount.Source.Request.URL.Path, err)
                 mounts.DeleteMountpoint(mount.Source.Request.URL.Path)
 

@@ -8,7 +8,7 @@ import (
     "fmt"
 )
 
-type Client struct {
+type Connection struct {
     Id string
     Channel chan []byte
     Request *http.Request
@@ -17,7 +17,7 @@ type Client struct {
     Cancel context.CancelFunc
 }
 
-func (client *Client) Listen() {
+func (client *Connection) Listen() {
     client.Writer.Header().Set("X-Content-Type-Options", "nosniff")
 
     for client.Context.Err() != context.Canceled {
@@ -35,11 +35,11 @@ func (client *Client) Listen() {
 type Mountpoint struct {
     sync.RWMutex
     Path string
-    Source Client
-    Clients map[string]*Client
+    Source Connection
+    Clients map[string]*Connection
 }
 
-func (mount *Mountpoint) AddClient(client *Client) {
+func (mount *Mountpoint) AddClient(client *Connection) {
     mount.Lock()
     mount.Clients[client.Id] = client
     mount.Unlock()
@@ -52,9 +52,6 @@ func (mount *Mountpoint) DeleteClient(id string) {
 }
 
 func (mount *Mountpoint) Broadcast() { // needs a better name
-    fmt.Fprintf(mount.Source.Writer, "\r\n")
-    mount.Source.Writer.(http.Flusher).Flush()
-
     buf := make([]byte, 1024)
     _, err := mount.Source.Request.Body.Read(buf)
     for ; err == nil; _, err = mount.Source.Request.Body.Read(buf) {
@@ -79,7 +76,7 @@ type MountpointCollection struct {
     mounts map[string]*Mountpoint
 }
 
-func (m MountpointCollection) NewMountpoint(source Client) (mount *Mountpoint, err error) {
+func (m MountpointCollection) NewMountpoint(source Connection) (mount *Mountpoint, err error) {
     path := source.Request.URL.Path
     m.Lock()
     if _, ok := m.mounts[path]; ok {
@@ -90,7 +87,7 @@ func (m MountpointCollection) NewMountpoint(source Client) (mount *Mountpoint, e
     mount = &Mountpoint{
         Path: path,
         Source: source,
-        Clients: make(map[string]*Client),
+        Clients: make(map[string]*Connection),
     }
 
     m.mounts[path] = mount
