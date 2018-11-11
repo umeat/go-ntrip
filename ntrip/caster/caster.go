@@ -1,30 +1,11 @@
 package caster
 
 import (
-    "fmt"
     "net/http"
     "log"
     "context"
     "github.com/satori/go.uuid"
 )
-
-func (mount *Mountpoint) BroadcastStream() { // needs a better name
-    fmt.Fprintf(mount.Source.Writer, "\r\n")
-    mount.Source.Writer.(http.Flusher).Flush()
-
-    buf := make([]byte, 1024)
-    _, err := mount.Source.Request.Body.Read(buf)
-    for ; err == nil; _, err = mount.Source.Request.Body.Read(buf) {
-        mount.Broadcast(buf)
-        buf = make([]byte, 1024)
-    }
-
-    mount.Lock()
-    for _, client := range mount.Clients {
-        client.Cancel()
-    }
-    mount.Unlock()
-}
 
 func Serve() {
     mounts := MountpointCollection{mounts: make(map[string]*Mountpoint)}
@@ -48,7 +29,7 @@ func Serve() {
                 }
 
                 log.Println("Mountpoint connected:", mount.Source.Request.URL.Path)
-                mount.BroadcastStream()
+                mount.Broadcast()
                 log.Println("Mountpoint disconnected:", mount.Source.Request.URL.Path, err)
                 mounts.DeleteMountpoint(mount.Source.Request.URL.Path)
 

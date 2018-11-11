@@ -51,12 +51,26 @@ func (mount *Mountpoint) DeleteClient(id string) {
     mount.Unlock()
 }
 
-func (mount *Mountpoint) Broadcast(data []byte) {
-    mount.RLock()
-    for _, client := range mount.Clients {
-        client.Channel <- data // Can this blow up?
+func (mount *Mountpoint) Broadcast() { // needs a better name
+    fmt.Fprintf(mount.Source.Writer, "\r\n")
+    mount.Source.Writer.(http.Flusher).Flush()
+
+    buf := make([]byte, 1024)
+    _, err := mount.Source.Request.Body.Read(buf)
+    for ; err == nil; _, err = mount.Source.Request.Body.Read(buf) {
+        mount.RLock()
+        for _, client := range mount.Clients {
+            client.Channel <- buf // Can this blow up?
+        }
+        mount.RUnlock()
+        buf = make([]byte, 1024)
     }
-    mount.RUnlock()
+
+    mount.Lock()
+    for _, client := range mount.Clients {
+        client.Cancel()
+    }
+    mount.Unlock()
 }
 
 
