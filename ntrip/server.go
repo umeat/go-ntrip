@@ -6,12 +6,13 @@ import (
     "github.com/benburkert/http"
 )
 
-func Server(ntripCasterUrl *url.URL, reader io.ReadCloser) (err error) {
+func Server(ntripCasterUrl string, reader io.ReadCloser) (err error) {
+    u, _ := url.Parse(ntripCasterUrl)
     req := &http.Request{
         Method: "POST",
         ProtoMajor: 1,
         ProtoMinor: 1,
-        URL: ntripCasterUrl,
+        URL: u,
         TransferEncoding: []string{"chunked"},
         Body: reader,
         Header: make(map[string][]string),

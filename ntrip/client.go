@@ -6,12 +6,13 @@ import (
     "github.com/benburkert/http"
 )
 
-func Client(ntripCasterUrl *url.URL, username string, password string) (reader io.ReadCloser, err error) {
+func Client(ntripCasterUrl string, username string, password string) (reader io.ReadCloser, err error) {
+    u, _ := url.Parse(ntripCasterUrl)
     req := &http.Request{
         Method: "GET",
         ProtoMajor: 1,
         ProtoMinor: 1,
-        URL: ntripCasterUrl,
+        URL: u,
         Header: make(map[string][]string),
     }
 
