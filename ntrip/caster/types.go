@@ -17,14 +17,14 @@ type Connection struct {
     Cancel context.CancelFunc
 }
 
-func (client *Connection) Listen() {
-    client.Writer.Header().Set("X-Content-Type-Options", "nosniff")
+func (conn *Connection) Listen() {
+    conn.Writer.Header().Set("X-Content-Type-Options", "nosniff")
 
-    for client.Context.Err() != context.Canceled {
+    for conn.Context.Err() != context.Canceled {
         select {
-            case data := <-client.Channel:
-                fmt.Fprintf(client.Writer, "%s", data)
-                client.Writer.(http.Flusher).Flush()
+            case data := <-conn.Channel:
+                fmt.Fprintf(conn.Writer, "%s", data)
+                conn.Writer.(http.Flusher).Flush()
             default:
                 break
         }

@@ -23,6 +23,9 @@ func Serve() {
 
         switch r.Method {
             case http.MethodPost:
+                fmt.Fprintf(mount.Source.Writer, "\r\n")
+                go mount.Source.Writer.(http.Flusher).Flush()
+
                 mount, err := mounts.NewMountpoint(client)
                 if err != nil {
                     w.WriteHeader(http.StatusConflict)
@@ -30,8 +33,6 @@ func Serve() {
                 }
 
                 log.Println("Mountpoint connected:", mount.Source.Request.URL.Path)
-                fmt.Fprintf(mount.Source.Writer, "\r\n")
-                mount.Source.Writer.(http.Flusher).Flush()
                 mount.Broadcast()
 
                 log.Println("Mountpoint disconnected:", mount.Source.Request.URL.Path, err)
@@ -42,6 +43,7 @@ func Serve() {
                     mount.AddClient(&client)
                     log.Println("Accepted Client on mountpoint", client.Request.URL.Path)
                     client.Listen()
+
                     log.Println("Client disconnected", client.Id)
                     mount.DeleteClient(client.Id)
                 } else {
