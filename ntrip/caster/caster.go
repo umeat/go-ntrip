@@ -19,14 +19,14 @@ func Serve() {
 
         ctx, cancel := context.WithCancel(r.Context())
         // Not sure how large to make the buffered channel
-        client := Connection{requestId, make(chan []byte, 5), r, w, ctx, cancel}
+        client := &Connection{requestId, make(chan []byte, 5), r, w, ctx, cancel}
 
         switch r.Method {
             case http.MethodPost:
                 fmt.Fprintf(client.Writer, "\r\n")
                 go client.Writer.(http.Flusher).Flush()
 
-                mount, err := mounts.NewMountpoint(&client)
+                mount, err := mounts.NewMountpoint(client)
                 if err != nil {
                     w.WriteHeader(http.StatusConflict)
                     return
@@ -40,7 +40,7 @@ func Serve() {
 
             case http.MethodGet:
                 if mount, exists := mounts.GetMountpoint(r.URL.Path); exists {
-                    mount.AddClient(&client)
+                    mount.AddClient(client)
                     log.Println("Accepted Client on mountpoint", client.Request.URL.Path)
                     client.Listen()
                     log.Println("Client disconnected", client.Id)
