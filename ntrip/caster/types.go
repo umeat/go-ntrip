@@ -35,7 +35,7 @@ func (conn *Connection) Listen() {
 type Mountpoint struct {
     sync.RWMutex
     Path string
-    Source Connection
+    Source *Connection
     Clients map[string]*Connection
 }
 
@@ -51,7 +51,7 @@ func (mount *Mountpoint) DeleteClient(id string) {
     mount.Unlock()
 }
 
-func (mount *Mountpoint) Broadcast() { // needs a better name
+func (mount *Mountpoint) Broadcast() { // needs a better name - should return the error
     buf := make([]byte, 1024)
     nbytes, err := mount.Source.Request.Body.Read(buf)
     for ; err == nil; nbytes, err = mount.Source.Request.Body.Read(buf) {
@@ -76,7 +76,7 @@ type MountpointCollection struct {
     mounts map[string]*Mountpoint
 }
 
-func (m MountpointCollection) NewMountpoint(source Connection) (mount *Mountpoint, err error) {
+func (m MountpointCollection) NewMountpoint(source *Connection) (mount *Mountpoint, err error) {
     path := source.Request.URL.Path
     m.Lock()
     if _, ok := m.mounts[path]; ok {
