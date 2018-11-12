@@ -21,13 +21,9 @@ func (conn *Connection) Listen() {
     conn.Writer.Header().Set("X-Content-Type-Options", "nosniff")
 
     for conn.Context.Err() != context.Canceled {
-        select {
-            case data := <-conn.Channel:
-                fmt.Fprintf(conn.Writer, "%s", data)
-                conn.Writer.(http.Flusher).Flush()
-            default:
-                break
-        }
+        data := <-conn.Channel
+        fmt.Fprintf(conn.Writer, "%s", data)
+        conn.Writer.(http.Flusher).Flush()
     }
 }
 
