@@ -53,7 +53,12 @@ func (mount *Mountpoint) Broadcast() { // needs a better name - should return th
     for ; err == nil; nbytes, err = mount.Source.Request.Body.Read(buf) {
         mount.RLock()
         for _, client := range mount.Clients {
-            client.Channel <- buf[:nbytes] // Can this blow up?
+            select {
+                case client.Channel <- buf[:nbytes]: // Can this blow up? Do I need to do :nbytes?
+                    continue
+                default:
+                    continue
+            }
         }
         mount.RUnlock()
         buf = make([]byte, 1024)
