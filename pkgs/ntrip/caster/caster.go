@@ -42,7 +42,7 @@ func Serve() {
                 if mount, exists := mounts.GetMountpoint(r.URL.Path); exists {
                     mount.AddClient(client)
 
-                    log.Println("Accepted Client on mountpoint", client.Request.URL.Path)
+                    log.Println("Accepted Client on mountpoint", client.Request.URL.Path, client.Id)
                     client.Listen()
 
                     log.Println("Client disconnected", client.Id)

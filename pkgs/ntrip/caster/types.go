@@ -17,7 +17,7 @@ type Connection struct {
     Cancel context.CancelFunc
 }
 
-func (conn *Connection) Listen() {
+func (conn *Connection) Listen() { // I think this a bit of a misnomer - sounds like we're waiting for the client to send us data
     conn.Writer.Header().Set("X-Content-Type-Options", "nosniff")
 
     for conn.Context.Err() != context.Canceled {
