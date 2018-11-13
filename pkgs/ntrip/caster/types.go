@@ -24,12 +24,7 @@ func (conn *Connection) Listen() { // I think this a bit of a misnomer - sounds 
     for conn.Context.Err() != context.Canceled {
         select {
             case data := <-conn.Channel:
-                select {
-                    case <-conn.Write(data):
-                        continue
-                    case <-time.After(10 * time.Second):
-                        break
-                }
+                <-conn.Write(data)
             case <-time.After(10 * time.Second):
                 break
         }
@@ -70,16 +65,18 @@ func (mount *Mountpoint) Broadcast() { // needs a better name - should return th
     buf := make([]byte, 1024)
     nbytes, err := mount.Source.Request.Body.Read(buf)
     for ; err == nil; nbytes, err = mount.Source.Request.Body.Read(buf) {
-        mount.RLock()
-        for _, client := range mount.Clients {
-            select {
-                case client.Channel <- buf[:nbytes]: // Can this blow up? Do I need to do :nbytes?
-                    continue
-                default:
-                    continue
+        go func() {
+            mount.RLock()
+            for _, client := range mount.Clients {
+                select {
+                    case client.Channel <- buf[:nbytes]: // Can this blow up? Do I need to do :nbytes?
+                        continue
+                    default:
+                        continue
+                }
             }
-        }
-        mount.RUnlock()
+            mount.RUnlock()
+        }()
         buf = make([]byte, 1024)
     }
 
