@@ -24,7 +24,7 @@ func Serve() {
         switch r.Method {
             case http.MethodPost:
                 fmt.Fprintf(client.Writer, "\r\n")
-                go client.Writer.(http.Flusher).Flush()
+                client.Writer.(http.Flusher).Flush()
 
                 mount, err := mounts.NewMountpoint(client)
                 if err != nil {

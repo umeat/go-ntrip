@@ -6,6 +6,7 @@ import (
     "context"
     "net/http"
     "fmt"
+    "time"
 )
 
 type Connection struct {
@@ -21,9 +22,13 @@ func (conn *Connection) Listen() { // I think this a bit of a misnomer - sounds 
     conn.Writer.Header().Set("X-Content-Type-Options", "nosniff")
 
     for conn.Context.Err() != context.Canceled {
-        data := <-conn.Channel
-        fmt.Fprintf(conn.Writer, "%s", data)
-        conn.Writer.(http.Flusher).Flush()
+        select {
+            case data := <-conn.Channel:
+                fmt.Fprintf(conn.Writer, "%s", data)
+                conn.Writer.(http.Flusher).Flush()
+            case <-time.After(10 * time.Second):
+                break
+        }
     }
 }
 
