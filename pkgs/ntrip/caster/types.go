@@ -61,22 +61,24 @@ func (mount *Mountpoint) DeleteClient(id string) {
     mount.Unlock()
 }
 
+func (mount *Mountpoint) Write(data []byte) {
+    mount.RLock()
+    for _, client := range mount.Clients {
+        select {
+            case client.Channel <- data: // Can this blow up? Do I need to do :nbytes?
+                continue
+            default:
+                continue
+        }
+    }
+    mount.RUnlock()
+}
+
 func (mount *Mountpoint) Broadcast() { // needs a better name - should return the error
     buf := make([]byte, 1024)
     nbytes, err := mount.Source.Request.Body.Read(buf)
     for ; err == nil; nbytes, err = mount.Source.Request.Body.Read(buf) {
-        go func() {
-            mount.RLock()
-            for _, client := range mount.Clients {
-                select {
-                    case client.Channel <- buf[:nbytes]: // Can this blow up? Do I need to do :nbytes?
-                        continue
-                    default:
-                        continue
-                }
-            }
-            mount.RUnlock()
-        }()
+        go mount.Write(buf[:nbytes]) // Not convinced that this will do anything
         buf = make([]byte, 1024)
     }
 
