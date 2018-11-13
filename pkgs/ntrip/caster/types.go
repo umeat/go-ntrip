@@ -24,12 +24,21 @@ func (conn *Connection) Listen() { // I think this a bit of a misnomer - sounds 
     for conn.Context.Err() != context.Canceled {
         select {
             case data := <-conn.Channel:
-                fmt.Fprintf(conn.Writer, "%s", data)
-                conn.Writer.(http.Flusher).Flush()
+                <-conn.Write(data)
             case <-time.After(10 * time.Second):
                 break
         }
     }
+}
+
+func (conn *Connection) Write(data []byte) chan bool {
+    c := make(chan bool)
+    go func() {
+        fmt.Fprintf(conn.Writer, "%s", data)
+        conn.Writer.(http.Flusher).Flush()
+        c <- true
+    }()
+    return c
 }
 
 

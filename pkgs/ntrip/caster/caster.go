@@ -1,11 +1,11 @@
 package caster
 
 import (
-    "fmt"
     "net/http"
     "log"
     "context"
     "github.com/satori/go.uuid"
+    "time"
 )
 
 func Serve() {
@@ -16,6 +16,7 @@ func Serve() {
         w.Header().Set("X-Request-Id", requestId)
         w.Header().Set("Ntrip-Version", "Ntrip/2.0")
         w.Header().Set("Server", "NTRIP GoCaster")
+        w.Header().Set("Content-Type", "application/octet-stream")
 
         ctx, cancel := context.WithCancel(r.Context())
         // Not sure how large to make the buffered channel
@@ -23,8 +24,13 @@ func Serve() {
 
         switch r.Method {
             case http.MethodPost:
-                fmt.Fprintf(client.Writer, "\r\n")
-                client.Writer.(http.Flusher).Flush()
+                // A POST client may not read any response from the server, in which case a flush may block
+                select {
+                    case <-client.Write([]byte("\r\n")):
+                        break
+                    case <-time.After(2 * time.Second):
+                        break
+                }
 
                 mount, err := mounts.NewMountpoint(client)
                 if err != nil {
