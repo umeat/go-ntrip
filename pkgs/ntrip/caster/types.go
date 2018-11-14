@@ -28,11 +28,11 @@ func (conn *Connection) Listen() { // I think this a bit of a misnomer - sounds 
                     case <-conn.Write(data):
                         continue
                     case <-time.After(30 * time.Second):
-                        break
+                        return
                 }
 
             case <-time.After(10 * time.Second):
-                break
+                return
         }
     }
 }
