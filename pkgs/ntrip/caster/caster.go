@@ -5,6 +5,7 @@ import (
     "log"
     "context"
     "github.com/satori/go.uuid"
+    "time"
 )
 
 func Serve() {
@@ -24,7 +25,12 @@ func Serve() {
         switch r.Method {
             case http.MethodPost:
                 // A POST client may not read any response from the server, in which case a flush may block
-                <-client.Write([]byte("\r\n"))
+                select {
+                    case <-client.Write([]byte("\r\n")):
+                        break
+                    case <-time.After(2 * time.Second):
+                        break
+                }
 
                 mount, err := mounts.NewMountpoint(client)
                 if err != nil {

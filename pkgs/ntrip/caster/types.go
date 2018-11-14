@@ -24,7 +24,13 @@ func (conn *Connection) Listen() { // I think this a bit of a misnomer - sounds 
     for conn.Context.Err() != context.Canceled {
         select {
             case data := <-conn.Channel:
-                <-conn.Write(data)
+                select {
+                    case <-conn.Write(data):
+                        continue
+                    case <-time.After(30 * time.Second):
+                        break
+                }
+
             case <-time.After(10 * time.Second):
                 break
         }
