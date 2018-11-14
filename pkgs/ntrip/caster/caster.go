@@ -21,6 +21,7 @@ func Serve() {
         ctx, cancel := context.WithCancel(r.Context())
         // Not sure how large to make the buffered channel
         client := &Connection{requestId, make(chan []byte, 5), r, w, ctx, cancel}
+        defer client.Request.Body.Close()
 
         switch r.Method {
             case http.MethodPost:
