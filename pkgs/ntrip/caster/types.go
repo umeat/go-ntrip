@@ -28,7 +28,7 @@ func (conn *Connection) Listen() { // I think this a bit of a misnomer - sounds 
                     case <-conn.Write(data):
                         continue
                     case <-time.After(30 * time.Second):
-                        return
+                        return // this doesn't do the trick -- seems like Flush is still keeping a thread open even after the main thread dies
                 }
 
             case <-time.After(10 * time.Second):
