@@ -18,7 +18,7 @@ type Connection struct {
     Cancel context.CancelFunc
 }
 
-func (conn *Connection) Subscribe(mount *Mountpoint) {
+func (conn *Connection) Subscribe(mount *Mountpoint) err error {
     mount.AddClient(conn)
     defer mount.DeleteClient(conn.Id)
 
@@ -31,13 +31,15 @@ func (conn *Connection) Subscribe(mount *Mountpoint) {
                     case <-conn.Write(data):
                         continue
                     case <-time.After(30 * time.Second):
-                        return
+                        return errors.New("Timed out on write")
                 }
 
-            case <-time.After(10 * time.Second):
-                return
+            case <-time.After(30 * time.Second):
+                return errors.New("Timed out reading from channel")
         }
     }
+
+    return err
 }
 
 func (conn *Connection) Write(data []byte) chan bool {
@@ -83,7 +85,7 @@ func (mount *Mountpoint) Publish(data []byte) {
     mount.RUnlock()
 }
 
-func (mount *Mountpoint) Broadcast() {
+func (mount *Mountpoint) Broadcast() err error {
     buf := make([]byte, 1024)
     nbytes, err := mount.Source.Request.Body.Read(buf)
     for ; err == nil; nbytes, err = mount.Source.Request.Body.Read(buf) {
@@ -96,6 +98,8 @@ func (mount *Mountpoint) Broadcast() {
         client.Cancel()
     }
     mount.Unlock()
+
+    return err
 }
 
 
