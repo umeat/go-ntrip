@@ -33,7 +33,7 @@ func Serve() {
                         break
                 }
 
-                mount, err := mounts.NewMountpoint(client)
+                mount, err := mounts.NewMountpoint(client) // Should probably construct the mountpoint first then pass it to mounts.AddMountpoint
                 if err != nil {
                     w.WriteHeader(http.StatusConflict)
                     return
@@ -47,13 +47,9 @@ func Serve() {
 
             case http.MethodGet:
                 if mount, exists := mounts.GetMountpoint(r.URL.Path); exists {
-                    mount.AddClient(client)
-
                     log.Println("Accepted Client on mountpoint", client.Request.URL.Path, client.Id)
-                    client.Listen()
-
+                    client.Subscribe(mount)
                     log.Println("Client disconnected", client.Id)
-                    mount.DeleteClient(client.Id)
                 } else {
                     w.WriteHeader(http.StatusNotFound)
                 }

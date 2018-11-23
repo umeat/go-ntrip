@@ -18,7 +18,10 @@ type Connection struct {
     Cancel context.CancelFunc
 }
 
-func (conn *Connection) Listen() { // I think this a bit of a misnomer - sounds like we're waiting for the client to send us data
+func (conn *Connection) Subscribe(mount *Mountpoint) {
+    mount.AddClient(conn)
+    defer(mount.DeleteClient(conn.Id))
+
     conn.Writer.Header().Set("X-Content-Type-Options", "nosniff")
 
     for conn.Context.Err() != context.Canceled {
@@ -28,7 +31,7 @@ func (conn *Connection) Listen() { // I think this a bit of a misnomer - sounds 
                     case <-conn.Write(data):
                         continue
                     case <-time.After(30 * time.Second):
-                        return // this doesn't do the trick -- seems like Flush is still keeping a thread open even after the main thread dies
+                        return
                 }
 
             case <-time.After(10 * time.Second):
@@ -67,11 +70,11 @@ func (mount *Mountpoint) DeleteClient(id string) {
     mount.Unlock()
 }
 
-func (mount *Mountpoint) Write(data []byte) {
+func (mount *Mountpoint) Publish(data []byte) {
     mount.RLock()
     for _, client := range mount.Clients {
         select {
-            case client.Channel <- data: // Can this blow up? Do I need to do :nbytes?
+            case client.Channel <- data:
                 continue
             default:
                 continue
@@ -80,11 +83,11 @@ func (mount *Mountpoint) Write(data []byte) {
     mount.RUnlock()
 }
 
-func (mount *Mountpoint) Broadcast() { // needs a better name - should return the error
+func (mount *Mountpoint) Broadcast() {
     buf := make([]byte, 1024)
     nbytes, err := mount.Source.Request.Body.Read(buf)
     for ; err == nil; nbytes, err = mount.Source.Request.Body.Read(buf) {
-        go mount.Write(buf[:nbytes]) // Not convinced that this will do anything
+        go mount.Publish(buf[:nbytes])
         buf = make([]byte, 1024)
     }
 
