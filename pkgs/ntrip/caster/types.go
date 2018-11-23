@@ -20,7 +20,7 @@ type Connection struct {
 
 func (conn *Connection) Subscribe(mount *Mountpoint) {
     mount.AddClient(conn)
-    defer(mount.DeleteClient(conn.Id))
+    defer mount.DeleteClient(conn.Id)
 
     conn.Writer.Header().Set("X-Content-Type-Options", "nosniff")
 
