@@ -5,7 +5,6 @@ import (
     "log"
     "context"
     "github.com/satori/go.uuid"
-    "time"
 )
 
 func Serve() {

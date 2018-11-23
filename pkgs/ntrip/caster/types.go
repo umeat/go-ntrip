@@ -18,7 +18,7 @@ type Connection struct {
     Cancel context.CancelFunc
 }
 
-func (conn *Connection) Subscribe(mount *Mountpoint) err error {
+func (conn *Connection) Subscribe(mount *Mountpoint) (err error) {
     mount.AddClient(conn)
     defer mount.DeleteClient(conn.Id)
 
@@ -85,7 +85,7 @@ func (mount *Mountpoint) Publish(data []byte) {
     mount.RUnlock()
 }
 
-func (mount *Mountpoint) Broadcast() err error {
+func (mount *Mountpoint) Broadcast() (err error) {
     buf := make([]byte, 1024)
     nbytes, err := mount.Source.Request.Body.Read(buf)
     for ; err == nil; nbytes, err = mount.Source.Request.Body.Read(buf) {
