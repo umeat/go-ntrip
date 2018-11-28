@@ -105,13 +105,13 @@ func (mount *Mountpoint) Broadcast() (err error) {
 
 type MountpointCollection struct {
     sync.RWMutex
-    mounts map[string]*Mountpoint
+    Mounts map[string]*Mountpoint
 }
 
 func (m MountpointCollection) NewMountpoint(source *Connection) (mount *Mountpoint, err error) {
     path := source.Request.URL.Path
     m.Lock()
-    if _, ok := m.mounts[path]; ok {
+    if _, ok := m.Mounts[path]; ok {
         m.Unlock()
         return mount, errors.New("Mountpoint in use")
     }
@@ -122,20 +122,20 @@ func (m MountpointCollection) NewMountpoint(source *Connection) (mount *Mountpoi
         Clients: make(map[string]*Connection),
     }
 
-    m.mounts[path] = mount
+    m.Mounts[path] = mount
     m.Unlock()
     return mount, nil
 }
 
 func (m MountpointCollection) DeleteMountpoint(id string) {
     m.Lock()
-    delete(m.mounts, id)
+    delete(m.Mounts, id)
     m.Unlock()
 }
 
 func (m MountpointCollection) GetMountpoint(id string) (mount *Mountpoint, ok bool) {
     m.RLock()
-    mount, ok = m.mounts[id]
+    mount, ok = m.Mounts[id]
     m.RUnlock()
     return mount, ok
 }

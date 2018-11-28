@@ -8,7 +8,7 @@ import (
 )
 
 func Serve() {
-    mounts := MountpointCollection{mounts: make(map[string]*Mountpoint)}
+    mounts := MountpointCollection{Mounts: make(map[string]*Mountpoint)}
 
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         requestId := uuid.Must(uuid.NewV4()).String()
