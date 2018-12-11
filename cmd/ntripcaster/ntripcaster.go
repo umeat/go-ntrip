@@ -5,5 +5,6 @@ import (
 )
 
 func main() {
-    caster.Serve()
+    authorizer, _ := caster.NewCognitoAuthorizer() // TODO: take relevant variables from Config
+    caster.Serve(authorizer) // TODO: Pass in Config object
 }

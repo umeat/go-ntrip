@@ -7,12 +7,12 @@ import (
     "github.com/satori/go.uuid"
 )
 
-func Serve() { // Still not sure best how to lay out this package - what belongs in cmd/ntripcaster vs what belongs here?
-    log.SetFormatter(&log.JSONFormatter{})
+type Authenticator interface {
+    Authenticate(*Connection) error
+}
 
-    // Maybe auth should be initialized in cmd/ntripcaster and passed into Serve as an interface (in a conf or context or something)
-    auth := &Cognito{} // TODO: Implement interface for authorizers and make auth method configurable
-    auth.Initialize() // TODO: Pass a config object of some kind
+func Serve(auth Authenticator) { // Still not sure best how to lay out this package - what belongs in cmd/ntripcaster vs what belongs here?
+    log.SetFormatter(&log.JSONFormatter{})
 
     mounts := MountpointCollection{Mounts: make(map[string]*Mountpoint)}
 

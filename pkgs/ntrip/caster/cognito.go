@@ -1,6 +1,6 @@
 package caster
 
-// TODO: This module could be in a different package, and implement and interface called Authorizer with the methods Initialize and Authenticate
+// TODO: This module could be in a different package - maybe in with cmd/ntripcaster
 
 import (
     "github.com/aws/aws-sdk-go/aws"
@@ -25,16 +25,16 @@ type Cognito struct {
     Cip *cognitoidentityprovider.CognitoIdentityProvider
 }
 
-func (cognito *Cognito) Initialize() (err error) {
+func NewCognitoAuthorizer() (auth Cognito, err error) {
     // TODO: Load from config - not secret, using AWS credentials for secret
-    cognito.UserPoolId = os.Getenv("COGNITO_USER_POOL_ID")
-    cognito.ClientId = os.Getenv("COGNITO_CLIENT_ID")
+    auth.UserPoolId = os.Getenv("COGNITO_USER_POOL_ID")
+    auth.ClientId = os.Getenv("COGNITO_CLIENT_ID")
 
-    cognito.Cip = cognitoidentityprovider.New(session.Must(session.NewSession()))
-    return err
+    auth.Cip = cognitoidentityprovider.New(session.Must(session.NewSession()))
+    return auth, err
 }
 
-func (cognito *Cognito) Authenticate(conn *Connection) (err error) {
+func (auth Cognito) Authenticate(conn *Connection) (err error) {
     username, password, ok := conn.Request.BasicAuth() // TODO: Implement Bearer auth
     if !ok {
         return errors.New("Basic auth not provided")
@@ -46,11 +46,11 @@ func (cognito *Cognito) Authenticate(conn *Connection) (err error) {
             "USERNAME": aws.String(username),
             "PASSWORD": aws.String(password),
         },
-        ClientId:   aws.String(cognito.ClientId),
-        UserPoolId: aws.String(cognito.UserPoolId),
+        ClientId:   aws.String(auth.ClientId),
+        UserPoolId: aws.String(auth.UserPoolId),
     }
 
-    _, err = cognito.Cip.AdminInitiateAuth(params) // TODO: Inspect response for claims and implement path based auth
+    _, err = auth.Cip.AdminInitiateAuth(params) // TODO: Inspect response for claims and implement path based auth
     if err != nil {
         return err
     }
