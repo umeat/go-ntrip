@@ -7,7 +7,11 @@ import (
 )
 
 func Client(ntripCasterUrl string, username string, password string) (reader io.ReadCloser, err error) {
-    u, _ := url.Parse(ntripCasterUrl)
+    u, err := url.Parse(ntripCasterUrl)
+    if err != nil {
+        return reader, err
+    }
+
     req := &http.Request{
         Method: "GET",
         ProtoMajor: 1,
