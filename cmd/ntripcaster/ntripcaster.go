@@ -1,8 +1,10 @@
 package main
 
-import "github.com/umeat/go-ntrip/pkgs/ntrip/caster"
+import (
+    "github.com/umeat/go-ntrip/pkgs/ntrip/caster"
+)
 
 func main() {
-    // config management etc
-    caster.Serve()
+    authorizer, _ := caster.NewCognitoAuthorizer() // TODO: take relevant variables from Config
+    caster.Serve(authorizer) // TODO: Pass in Config object - maybe https://micro.mu/docs/go-config.html#config
 }

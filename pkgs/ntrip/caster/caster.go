@@ -2,16 +2,24 @@ package caster
 
 import (
     "net/http"
-    "log"
+    log "github.com/sirupsen/logrus"
     "context"
     "github.com/satori/go.uuid"
 )
 
-func Serve() {
+func Serve(auth Authenticator) { // Still not sure best how to lay out this package - what belongs in cmd/ntripcaster vs what belongs here?
+    log.SetFormatter(&log.JSONFormatter{})
+
     mounts := MountpointCollection{Mounts: make(map[string]*Mountpoint)}
 
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         requestId := uuid.Must(uuid.NewV4()).String()
+        logger := log.WithFields(log.Fields{
+            "requestId": requestId,
+            "path": r.URL.Path,
+            "method": r.Method,
+        }) // Should this logger be an attribute of the Connection type?
+
         w.Header().Set("X-Request-Id", requestId)
         w.Header().Set("Ntrip-Version", "Ntrip/2.0")
         w.Header().Set("Server", "NTRIP GoCaster")
@@ -22,33 +30,40 @@ func Serve() {
         client := &Connection{requestId, make(chan []byte, 5), r, w, ctx, cancel}
         defer client.Request.Body.Close()
 
-        switch r.Method {
-            case http.MethodPost:
-                // A POST client may not read any response from the server, in which case a flush may block - so don't wait for the response
-                client.Write([]byte("\r\n"))
+        if err := auth.Authenticate(client); err != nil {
+            w.WriteHeader(http.StatusUnauthorized)
+            logger.Error("Unauthorized")
+            return
+        }
 
-                mount, err := mounts.NewMountpoint(client) // Should probably construct the mountpoint first then pass it to mounts.AddMountpoint
+        switch client.Request.Method {
+            case http.MethodPost:
+                <-client.Write([]byte("\r\n")) // Write behaves strangely if run asynchronously - however it may block forever in some cases
+
+                mount, err := mounts.NewMountpoint(client) // Should probably construct the mountpoint first then pass it to mounts.AddMountpoint - will be relevant if we make an interface for mount sources (if we want a different kind of source)
                 if err != nil {
                     w.WriteHeader(http.StatusConflict)
                     return
                 }
 
-                log.Println("Mountpoint connected:", mount.Source.Request.URL.Path)
+                logger.Info("Mountpoint Connected")
                 err = mount.Broadcast()
 
-                log.Println("Mountpoint disconnected:", mount.Source.Request.URL.Path, err)
+                logger.Info("Mountpoint Disconnected - ", err)
                 mounts.DeleteMountpoint(mount.Source.Request.URL.Path)
 
             case http.MethodGet:
                 if mount, exists := mounts.GetMountpoint(r.URL.Path); exists {
-                    log.Println("Accepted Client on mountpoint", client.Request.URL.Path, client.Id)
+                    logger.Info("Accepted Client")
                     err := client.Subscribe(mount)
-                    log.Println("Client disconnected", client.Id, err)
+                    logger.Info("Client Disconnected - ", err)
                 } else {
+                    logger.Error("Not Found")
                     w.WriteHeader(http.StatusNotFound)
                 }
 
             default:
+                logger.Error("Not Implemented")
                 w.WriteHeader(http.StatusNotImplemented)
         }
     })
