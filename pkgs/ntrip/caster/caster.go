@@ -7,10 +7,6 @@ import (
     "github.com/satori/go.uuid"
 )
 
-type Authenticator interface {
-    Authenticate(*Connection) error
-}
-
 func Serve(auth Authenticator) { // Still not sure best how to lay out this package - what belongs in cmd/ntripcaster vs what belongs here?
     log.SetFormatter(&log.JSONFormatter{})
 

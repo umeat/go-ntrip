@@ -9,6 +9,10 @@ import (
     "time"
 )
 
+type Authenticator interface {
+    Authenticate(*Connection) error
+}
+
 type Connection struct {
     Id string
     Channel chan []byte
