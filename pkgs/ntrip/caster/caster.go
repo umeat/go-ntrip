@@ -15,9 +15,10 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         requestId := uuid.Must(uuid.NewV4()).String()
         logger := log.WithFields(log.Fields{
-            "requestId": requestId,
+            "request_id": requestId,
             "path": r.URL.Path,
             "method": r.Method,
+            "source_ip": r.RemoteAddr,
         }) // Should this logger be an attribute of the Connection type?
 
         w.Header().Set("X-Request-Id", requestId)
