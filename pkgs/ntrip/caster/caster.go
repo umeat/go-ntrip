@@ -28,7 +28,7 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
 
         ctx, cancel := context.WithCancel(r.Context())
         // Not sure how large to make the buffered channel
-        client := &Connection{requestId, make(chan []byte, 5), r, w, ctx, cancel}
+        client := &Connection{requestId, make(chan []byte, 50), r, w, ctx, cancel}
         defer client.Request.Body.Close()
 
         if err := auth.Authenticate(client); err != nil {
@@ -39,7 +39,7 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
 
         switch client.Request.Method {
             case http.MethodPost:
-                <-client.Write([]byte("\r\n")) // Write behaves strangely if run asynchronously - however it may block forever in some cases
+                client.Write([]byte("\r\n")) // Write behaves strangely if run asynchronously - however it may block forever in some cases
 
                 mount, err := mounts.NewMountpoint(client) // Should probably construct the mountpoint first then pass it to mounts.AddMountpoint - will be relevant if we make an interface for mount sources (if we want a different kind of source)
                 if err != nil {
@@ -48,16 +48,40 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
                 }
 
                 logger.Info("Mountpoint Connected")
-                err = mount.Broadcast()
+                serverChan := make(chan []byte, 5)
+                go func(serverChan chan []byte) {
+                    buf := make([]byte, 4096)
+                    nbytes, err := mount.Source.Request.Body.Read(buf)
+                    for ; err == nil; nbytes, err = mount.Source.Request.Body.Read(buf) {
+                        serverChan <- buf[:nbytes]
+                        buf = make([]byte, 4096)
+                    }
+                }(serverChan)
 
-                logger.Info("Mountpoint Disconnected - ", err)
+                var clients []chan []byte
+                for {
+                    select {
+                    case c, _ := <-mount.Clients:
+                        clients = append(clients, c)
+                    case data, _ := <-serverChan:
+                        for _, c := range clients {
+                            c <- data
+                        }
+                    }
+                }
+
                 mounts.DeleteMountpoint(mount.Source.Request.URL.Path)
 
             case http.MethodGet:
                 if mount, exists := mounts.GetMountpoint(r.URL.Path); exists {
                     logger.Info("Accepted Client")
-                    err := client.Subscribe(mount)
-                    logger.Info("Client Disconnected - ", err)
+                    mount.Clients <- client.Channel
+                    for {
+                        select {
+                        case data, _ := <-client.Channel:
+                            client.Write(data)
+                        }
+                    }
                 } else {
                     logger.Error("Not Found")
                     w.WriteHeader(http.StatusNotFound)
