@@ -5,6 +5,7 @@ import (
     log "github.com/sirupsen/logrus"
     "context"
     "github.com/satori/go.uuid"
+    "fmt"
 )
 
 func Serve(auth Authenticator) { // Still not sure best how to lay out this package - what belongs in cmd/ntripcaster vs what belongs here?
@@ -79,7 +80,8 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
                     for {
                         select {
                         case data, _ := <-client.Channel:
-                            client.Write(data)
+                            fmt.Fprintf(client.Writer, "%s", data)
+                            client.Writer.(http.Flusher).Flush()
                         }
                     }
                 } else {
