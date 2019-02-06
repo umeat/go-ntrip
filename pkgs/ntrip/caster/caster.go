@@ -3,7 +3,6 @@ package caster
 import (
     "net/http"
     log "github.com/sirupsen/logrus"
-    "context"
     "github.com/satori/go.uuid"
     "fmt"
 )
@@ -27,9 +26,8 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
         w.Header().Set("Server", "NTRIP GoCaster")
         w.Header().Set("Content-Type", "application/octet-stream")
 
-        ctx, cancel := context.WithCancel(r.Context())
         // Not sure how large to make the buffered channel
-        client := &Connection{requestId, make(chan []byte, 50), r, w, ctx, cancel}
+        client := &Connection{requestId, make(chan []byte, 50), r, w}
         defer client.Request.Body.Close()
 
         if err := auth.Authenticate(client); err != nil {
@@ -40,7 +38,8 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
 
         switch client.Request.Method {
             case http.MethodPost:
-                client.Write([]byte("\r\n")) // Write behaves strangely if run asynchronously - however it may block forever in some cases
+                fmt.Fprintf(client.Writer, "%s", []byte("\r\n"))
+                client.Writer.(http.Flusher).Flush()
 
                 mount, err := mounts.NewMountpoint(client) // Should probably construct the mountpoint first then pass it to mounts.AddMountpoint - will be relevant if we make an interface for mount sources (if we want a different kind of source)
                 if err != nil {
@@ -68,6 +67,10 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
                         for _, c := range clients {
                             c <- data
                         }
+                    case <-mount.Source.Request.Context().Done():
+                        logger.Info("Mountpoint Disconnected")
+                        mounts.DeleteMountpoint(mount.Path)
+                        return
                     }
                 }
 
@@ -82,6 +85,12 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
                         case data, _ := <-client.Channel:
                             fmt.Fprintf(client.Writer, "%s", data)
                             client.Writer.(http.Flusher).Flush()
+                        case <-client.Request.Context().Done():
+                            logger.Info("Client Disconnected - client closed connection")
+                            return
+                        case <-mount.Source.Request.Context().Done():
+                            logger.Info("Client Disconnected - mountpoint closed")
+                            return
                         }
                     }
                 } else {

@@ -3,9 +3,7 @@ package caster
 import (
     "errors"
     "sync"
-    "context"
     "net/http"
-    "fmt"
 )
 
 type Authenticator interface {
@@ -17,18 +15,6 @@ type Connection struct {
     Channel chan []byte
     Request *http.Request
     Writer http.ResponseWriter
-    Context context.Context
-    Cancel context.CancelFunc
-}
-
-func (conn *Connection) Write(data []byte) chan bool {
-    c := make(chan bool)
-    go func() {
-        fmt.Fprintf(conn.Writer, "%s", data)
-        conn.Writer.(http.Flusher).Flush()
-        c <- true
-    }()
-    return c
 }
 
 
