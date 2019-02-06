@@ -38,14 +38,13 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
 
         switch client.Request.Method {
             case http.MethodPost:
-                fmt.Fprintf(client.Writer, "%s", []byte("\r\n"))
-                client.Writer.(http.Flusher).Flush()
-
                 mount, err := mounts.NewMountpoint(client) // Should probably construct the mountpoint first then pass it to mounts.AddMountpoint - will be relevant if we make an interface for mount sources (if we want a different kind of source)
                 if err != nil {
                     w.WriteHeader(http.StatusConflict)
                     return
                 }
+
+                //client.Writer.(http.Flusher).Flush()
 
                 logger.Info("Mountpoint Connected")
                 serverChan := make(chan []byte, 5)
@@ -65,7 +64,12 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
                         clients = append(clients, c)
                     case data, _ := <-serverChan:
                         for _, c := range clients {
-                            c <- data
+                            select {
+                            case c <- data:
+                                continue
+                            default:
+                                continue
+                            }
                         }
                     case <-mount.Source.Request.Context().Done():
                         logger.Info("Mountpoint Disconnected")
@@ -73,8 +77,6 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
                         return
                     }
                 }
-
-                mounts.DeleteMountpoint(mount.Source.Request.URL.Path)
 
             case http.MethodGet:
                 if mount, exists := mounts.GetMountpoint(r.URL.Path); exists {
