@@ -25,16 +25,46 @@ type Mountpoint struct {
     Clients map[string]*Connection
 }
 
-func (m *Mountpoint) RegisterClient(client *Connection) {
-    m.Lock()
-    defer m.Unlock()
-    m.Clients[client.Id] = client
+func (mount *Mountpoint) RegisterClient(client *Connection) {
+    mount.Lock()
+    defer mount.Unlock()
+    mount.Clients[client.Id] = client
 }
 
-func (m *Mountpoint) DeregisterClient(client *Connection) {
-    m.Lock()
-    defer m.Unlock()
-    delete(m.Clients, client.Id)
+func (mount *Mountpoint) DeregisterClient(client *Connection) {
+    mount.Lock()
+    defer mount.Unlock()
+    delete(mount.Clients, client.Id)
+}
+
+func (mount *Mountpoint) ReadFromSource() { // Read data from Request Body and write to Source.Channel
+    buf := make([]byte, 4096)
+    nbytes, err := mount.Source.Request.Body.Read(buf)
+    for ; err == nil; nbytes, err = mount.Source.Request.Body.Read(buf) {
+        mount.Source.Channel <- buf[:nbytes] // Can this block indefinitely
+        buf = make([]byte, 4096)
+    }
+}
+
+func (mount *Mountpoint) Broadcast() { // Read data from Source.Channel and write to registered client channels
+    for {
+        select {
+        case data, _ := <-mount.Source.Channel:
+            mount.RLock()
+            for _, client := range mount.Clients {
+                select {
+                case client.Channel <- data:
+                    continue
+                default:
+                    continue // The default case should not occur now that clients can be deregistered
+                }
+            }
+            mount.RUnlock()
+
+        case <-mount.Source.Request.Context().Done():
+            return
+        }
+    }
 }
 
 

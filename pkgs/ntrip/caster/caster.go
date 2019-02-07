@@ -42,72 +42,51 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
                     Source: client,
                     Clients: make(map[string]*Connection),
                 }
+
                 err := mounts.AddMountpoint(mount)
                 if err != nil {
                     logger.Error("Mountpoint In Use")
-                    w.WriteHeader(http.StatusConflict)
+                    client.Writer.WriteHeader(http.StatusConflict)
                     return
                 }
 
-                client.Writer.(http.Flusher).Flush()
+                client.Writer.WriteHeader(http.StatusOK)
                 logger.Info("Mountpoint Connected")
 
-                serverChan := make(chan []byte, 5)
-                go func(serverChan chan []byte) {
-                    buf := make([]byte, 4096)
-                    nbytes, err := mount.Source.Request.Body.Read(buf)
-                    for ; err == nil; nbytes, err = mount.Source.Request.Body.Read(buf) {
-                        serverChan <- buf[:nbytes]
-                        buf = make([]byte, 4096)
-                    }
-                }(serverChan)
+                go mount.ReadFromSource()
+                mount.Broadcast()
 
+                logger.Info("Mountpoint Disconnected")
+                mounts.DeleteMountpoint(mount.Source.Request.URL.Path)
+
+            case http.MethodGet:
+                mount := mounts.GetMountpoint(client.Request.URL.Path)
+                if mount == nil {
+                    logger.Error("No Existing Mountpoint")
+                    client.Writer.WriteHeader(http.StatusNotFound)
+                    return
+                }
+
+                logger.Info("Accepted Client")
+                mount.RegisterClient(client)
                 for {
                     select {
-                    case data, _ := <-serverChan:
-                        mount.RLock()
-                        for _, c := range mount.Clients {
-                            select {
-                            case c.Channel <- data:
-                                continue
-                            default:
-                                continue
-                            }
-                        }
-                        mount.RUnlock()
+                    case data, _ := <-client.Channel:
+                        fmt.Fprintf(client.Writer, "%s", data)
+                        client.Writer.(http.Flusher).Flush()
+                    case <-client.Request.Context().Done():
+                        mount.DeregisterClient(client)
+                        logger.Info("Client Disconnected - client closed connection")
+                        return
                     case <-mount.Source.Request.Context().Done():
-                        logger.Info("Mountpoint Disconnected")
-                        mounts.DeleteMountpoint(mount.Source.Request.URL.Path)
+                        logger.Info("Client Disconnected - mountpoint closed connection")
                         return
                     }
                 }
 
-            case http.MethodGet:
-                if mount := mounts.GetMountpoint(client.Request.URL.Path); mount != nil {
-                    logger.Info("Accepted Client")
-                    mount.RegisterClient(client)
-                    for {
-                        select {
-                        case data, _ := <-client.Channel:
-                            fmt.Fprintf(client.Writer, "%s", data)
-                            client.Writer.(http.Flusher).Flush()
-                        case <-client.Request.Context().Done():
-                            mount.DeregisterClient(client)
-                            logger.Info("Client Disconnected - client closed connection")
-                            return
-                        case <-mount.Source.Request.Context().Done():
-                            logger.Info("Client Disconnected - mountpoint closed")
-                            return
-                        }
-                    }
-                } else {
-                    logger.Error("No Existing Mountpoint")
-                    w.WriteHeader(http.StatusNotFound)
-                }
-
             default:
                 logger.Error("Request Method Not Implemented")
-                w.WriteHeader(http.StatusNotImplemented)
+                client.Writer.WriteHeader(http.StatusNotImplemented)
         }
     })
 
