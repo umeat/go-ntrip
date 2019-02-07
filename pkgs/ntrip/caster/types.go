@@ -37,7 +37,7 @@ func (mount *Mountpoint) DeregisterClient(client *Connection) {
     delete(mount.Clients, client.Id)
 }
 
-func (mount *Mountpoint) ReadFromSource() { // Read data from Request Body and write to Source.Channel
+func (mount *Mountpoint) ReadSourceData() { // Read data from Request Body and write to Source.Channel
     buf := make([]byte, 4096)
     nbytes, err := mount.Source.Request.Body.Read(buf)
     for ; err == nil; nbytes, err = mount.Source.Request.Body.Read(buf) {
