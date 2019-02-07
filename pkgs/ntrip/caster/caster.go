@@ -19,34 +19,39 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
             "path": r.URL.Path,
             "method": r.Method,
             "source_ip": r.RemoteAddr,
-        }) // Should this logger be an attribute of the Connection type?
+        })
 
         w.Header().Set("X-Request-Id", requestId)
         w.Header().Set("Ntrip-Version", "Ntrip/2.0")
         w.Header().Set("Server", "NTRIP GoCaster")
         w.Header().Set("Content-Type", "application/octet-stream")
+        w.Header().Set("Connection", "close")
 
-        // Not sure how large to make the buffered channel
-        client := &Connection{requestId, make(chan []byte, 50), r, w}
+        client := &Connection{requestId, make(chan []byte, 10), r, w}
         defer client.Request.Body.Close()
 
-        if err := auth.Authenticate(client); err != nil {
-            w.WriteHeader(http.StatusUnauthorized)
-            logger.Error("Unauthorized")
-            return
-        }
+        //if err := auth.Authenticate(client); err != nil {
+        //    w.WriteHeader(http.StatusUnauthorized)
+        //    logger.Error("Unauthorized")
+        //    return
+        //}
 
         switch client.Request.Method {
             case http.MethodPost:
-                mount, err := mounts.NewMountpoint(client) // Should probably construct the mountpoint first then pass it to mounts.AddMountpoint - will be relevant if we make an interface for mount sources (if we want a different kind of source)
+                mount := &Mountpoint{
+                    Source: client,
+                    Clients: make(chan *Connection, 10),
+                }
+                err := mounts.AddMountpoint(mount)
                 if err != nil {
+                    logger.Error("Mountpoint In Use")
                     w.WriteHeader(http.StatusConflict)
                     return
                 }
 
-                client.Writer.(http.Flusher).Flush() // Might need to inspect request headers to see if Connection set to close
-
+                client.Writer.(http.Flusher).Flush()
                 logger.Info("Mountpoint Connected")
+
                 serverChan := make(chan []byte, 5)
                 go func(serverChan chan []byte) {
                     buf := make([]byte, 4096)
@@ -57,7 +62,7 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
                     }
                 }(serverChan)
 
-                var clients []chan []byte
+                var clients []*Connection
                 for {
                     select {
                     case c, _ := <-mount.Clients:
@@ -65,7 +70,7 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
                     case data, _ := <-serverChan:
                         for _, c := range clients {
                             select {
-                            case c <- data:
+                            case c.Channel <- data:
                                 continue
                             default:
                                 continue
@@ -73,15 +78,15 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
                         }
                     case <-mount.Source.Request.Context().Done():
                         logger.Info("Mountpoint Disconnected")
-                        mounts.DeleteMountpoint(mount.Path)
+                        mounts.DeleteMountpoint(mount.Source.Request.URL.Path)
                         return
                     }
                 }
 
             case http.MethodGet:
-                if mount, exists := mounts.GetMountpoint(r.URL.Path); exists {
+                if mount := mounts.GetMountpoint(client.Request.URL.Path); mount != nil {
                     logger.Info("Accepted Client")
-                    mount.Clients <- client.Channel
+                    mount.Clients <- client
                     for {
                         select {
                         case data, _ := <-client.Channel:
@@ -96,12 +101,12 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
                         }
                     }
                 } else {
-                    logger.Error("Not Found")
+                    logger.Error("No Existing Mountpoint")
                     w.WriteHeader(http.StatusNotFound)
                 }
 
             default:
-                logger.Error("Not Implemented")
+                logger.Error("Request Method Not Implemented")
                 w.WriteHeader(http.StatusNotImplemented)
         }
     })

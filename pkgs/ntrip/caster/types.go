@@ -10,6 +10,7 @@ type Authenticator interface {
     Authenticate(*Connection) error
 }
 
+
 type Connection struct {
     Id string
     Channel chan []byte
@@ -20,9 +21,8 @@ type Connection struct {
 
 type Mountpoint struct {
     sync.RWMutex
-    Path string
     Source *Connection
-    Clients chan chan []byte
+    Clients chan *Connection
 }
 
 
@@ -31,23 +31,15 @@ type MountpointCollection struct {
     Mounts map[string]*Mountpoint
 }
 
-func (m MountpointCollection) NewMountpoint(source *Connection) (mount *Mountpoint, err error) {
-    path := source.Request.URL.Path
-    m.Lock()
-    if _, ok := m.Mounts[path]; ok {
-        m.Unlock()
-        return mount, errors.New("Mountpoint in use")
+func (mc MountpointCollection) AddMountpoint(mount *Mountpoint) (err error) {
+    mc.Lock()
+    defer mc.Unlock()
+    if _, ok := mc.Mounts[mount.Source.Request.URL.Path]; ok {
+        return errors.New("Mountpoint in use")
     }
 
-    mount = &Mountpoint{
-        Path: path,
-        Source: source,
-        Clients: make(chan chan []byte, 4),
-    }
-
-    m.Mounts[path] = mount
-    m.Unlock()
-    return mount, nil
+    mc.Mounts[mount.Source.Request.URL.Path] = mount
+    return nil
 }
 
 func (m MountpointCollection) DeleteMountpoint(id string) {
@@ -56,9 +48,8 @@ func (m MountpointCollection) DeleteMountpoint(id string) {
     m.Unlock()
 }
 
-func (m MountpointCollection) GetMountpoint(id string) (mount *Mountpoint, ok bool) {
+func (m MountpointCollection) GetMountpoint(id string) (mount *Mountpoint) {
     m.RLock()
-    mount, ok = m.Mounts[id]
-    m.RUnlock()
-    return mount, ok
+    defer m.RUnlock()
+    return m.Mounts[id]
 }
