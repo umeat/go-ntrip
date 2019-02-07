@@ -52,7 +52,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
                 return
             }
 
-            conn.Writer.WriteHeader(http.StatusOK)
+            conn.Writer.(http.Flusher).Flush()
             logger.Info("Mountpoint Connected")
 
             go mount.ReadSourceData()
@@ -65,7 +65,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
         case http.MethodGet:
             mount := mounts.GetMountpoint(conn.Request.URL.Path)
             if mount == nil {
-                logger.Error("No Existing Mountpoint") // Should probably reserver Error for server errors
+                logger.Error("No Existing Mountpoint") // Should probably reserve logger.Error for server errors
                 conn.Writer.WriteHeader(http.StatusNotFound)
                 return
             }
