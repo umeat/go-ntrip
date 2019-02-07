@@ -44,7 +44,7 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
                     return
                 }
 
-                //client.Writer.(http.Flusher).Flush()
+                client.Writer.(http.Flusher).Flush() // Might need to inspect request headers to see if Connection set to close
 
                 logger.Info("Mountpoint Connected")
                 serverChan := make(chan []byte, 5)
