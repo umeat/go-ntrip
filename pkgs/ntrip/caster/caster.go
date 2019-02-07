@@ -40,7 +40,7 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
             case http.MethodPost:
                 mount := &Mountpoint{
                     Source: client,
-                    Clients: make(chan *Connection, 10),
+                    Clients: make(map[string]*Connection),
                 }
                 err := mounts.AddMountpoint(mount)
                 if err != nil {
@@ -62,13 +62,11 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
                     }
                 }(serverChan)
 
-                var clients []*Connection
                 for {
                     select {
-                    case c, _ := <-mount.Clients:
-                        clients = append(clients, c)
                     case data, _ := <-serverChan:
-                        for _, c := range clients {
+                        mount.RLock()
+                        for _, c := range mount.Clients {
                             select {
                             case c.Channel <- data:
                                 continue
@@ -76,6 +74,7 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
                                 continue
                             }
                         }
+                        mount.RUnlock()
                     case <-mount.Source.Request.Context().Done():
                         logger.Info("Mountpoint Disconnected")
                         mounts.DeleteMountpoint(mount.Source.Request.URL.Path)
@@ -86,13 +85,14 @@ func Serve(auth Authenticator) { // Still not sure best how to lay out this pack
             case http.MethodGet:
                 if mount := mounts.GetMountpoint(client.Request.URL.Path); mount != nil {
                     logger.Info("Accepted Client")
-                    mount.Clients <- client
+                    mount.RegisterClient(client)
                     for {
                         select {
                         case data, _ := <-client.Channel:
                             fmt.Fprintf(client.Writer, "%s", data)
                             client.Writer.(http.Flusher).Flush()
                         case <-client.Request.Context().Done():
+                            mount.DeregisterClient(client)
                             logger.Info("Client Disconnected - client closed connection")
                             return
                         case <-mount.Source.Request.Context().Done():

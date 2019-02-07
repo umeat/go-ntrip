@@ -22,7 +22,19 @@ type Connection struct {
 type Mountpoint struct {
     sync.RWMutex
     Source *Connection
-    Clients chan *Connection
+    Clients map[string]*Connection
+}
+
+func (m *Mountpoint) RegisterClient(client *Connection) {
+    m.Lock()
+    defer m.Unlock()
+    m.Clients[client.Id] = client
+}
+
+func (m *Mountpoint) DeregisterClient(client *Connection) {
+    m.Lock()
+    defer m.Unlock()
+    delete(m.Clients, client.Id)
 }
 
 
@@ -44,8 +56,8 @@ func (mc MountpointCollection) AddMountpoint(mount *Mountpoint) (err error) {
 
 func (m MountpointCollection) DeleteMountpoint(id string) {
     m.Lock()
+    defer m.Unlock()
     delete(m.Mounts, id)
-    m.Unlock()
 }
 
 func (m MountpointCollection) GetMountpoint(id string) (mount *Mountpoint) {
