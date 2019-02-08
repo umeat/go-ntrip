@@ -3,107 +3,68 @@ package caster
 import (
     "errors"
     "sync"
-    "context"
     "net/http"
-    "fmt"
-    "time"
 )
 
 type Authenticator interface {
     Authenticate(*Connection) error
 }
 
+
 type Connection struct {
     Id string
     Channel chan []byte
     Request *http.Request
     Writer http.ResponseWriter
-    Context context.Context
-    Cancel context.CancelFunc
-}
-
-func (conn *Connection) Subscribe(mount *Mountpoint) (err error) {
-    mount.AddClient(conn)
-    defer mount.DeleteClient(conn.Id)
-
-    conn.Writer.Header().Set("X-Content-Type-Options", "nosniff")
-
-    for conn.Context.Err() != context.Canceled {
-        select {
-            case data := <-conn.Channel:
-                select {
-                    case <-conn.Write(data):
-                        continue
-                    case <-time.After(30 * time.Second):
-                        return errors.New("Timed out on write")
-                }
-
-            case <-time.After(30 * time.Second):
-                return errors.New("Timed out reading from channel")
-        }
-    }
-
-    return err
-}
-
-func (conn *Connection) Write(data []byte) chan bool {
-    c := make(chan bool)
-    go func() {
-        fmt.Fprintf(conn.Writer, "%s", data)
-        conn.Writer.(http.Flusher).Flush()
-        c <- true
-    }()
-    return c
 }
 
 
 type Mountpoint struct {
     sync.RWMutex
-    Path string
     Source *Connection
-    Clients map[string]*Connection
+    Subscribers map[string]*Connection // Could have a Subscriber interface with Channel()
 }
 
-func (mount *Mountpoint) AddClient(client *Connection) {
+func (mount *Mountpoint) RegisterSubscriber(subscriber *Connection) {
     mount.Lock()
-    mount.Clients[client.Id] = client
-    mount.Unlock()
+    defer mount.Unlock()
+    mount.Subscribers[subscriber.Id] = subscriber
 }
 
-func (mount *Mountpoint) DeleteClient(id string) {
+func (mount *Mountpoint) DeregisterSubscriber(subscriber *Connection) { // Unsubscribe
     mount.Lock()
-    delete(mount.Clients, id)
-    mount.Unlock()
+    defer mount.Unlock()
+    delete(mount.Subscribers, subscriber.Id)
 }
 
-func (mount *Mountpoint) Publish(data []byte) {
-    mount.RLock()
-    for _, client := range mount.Clients {
-        select {
-            case client.Channel <- data:
-                continue
-            default:
-                continue
-        }
-    }
-    mount.RUnlock()
-}
-
-func (mount *Mountpoint) Broadcast() (err error) {
-    buf := make([]byte, 1024)
+func (mount *Mountpoint) ReadSourceData() { // Read data from Request Body and write to Source.Channel
+    buf := make([]byte, 4096)
     nbytes, err := mount.Source.Request.Body.Read(buf)
     for ; err == nil; nbytes, err = mount.Source.Request.Body.Read(buf) {
-        go mount.Publish(buf[:nbytes])
-        buf = make([]byte, 1024)
+        mount.Source.Channel <- buf[:nbytes] // Can this block indefinitely
+        buf = make([]byte, 4096)
     }
+}
 
-    mount.Lock()
-    for _, client := range mount.Clients {
-        client.Cancel()
+func (mount *Mountpoint) Broadcast() { // Read data from Source.Channel and write to registered subscriber channels
+    for {
+        select {
+        case data, _ := <-mount.Source.Channel:
+            mount.RLock()
+            for _, subscriber := range mount.Subscribers {
+                select {
+                case subscriber.Channel <- data:
+                    continue
+                default:
+                    continue // The default case should not occur now that subscriber can be deregistered
+                }
+            }
+            mount.RUnlock()
+
+        case <-mount.Source.Request.Context().Done():
+            return
+        }
     }
-    mount.Unlock()
-
-    return err
 }
 
 
@@ -112,34 +73,25 @@ type MountpointCollection struct {
     Mounts map[string]*Mountpoint
 }
 
-func (m MountpointCollection) NewMountpoint(source *Connection) (mount *Mountpoint, err error) {
-    path := source.Request.URL.Path
-    m.Lock()
-    if _, ok := m.Mounts[path]; ok {
-        m.Unlock()
-        return mount, errors.New("Mountpoint in use")
+func (mc MountpointCollection) AddMountpoint(mount *Mountpoint) (err error) {
+    mc.Lock()
+    defer mc.Unlock()
+    if _, ok := mc.Mounts[mount.Source.Request.URL.Path]; ok {
+        return errors.New("Mountpoint in use")
     }
 
-    mount = &Mountpoint{
-        Path: path,
-        Source: source,
-        Clients: make(map[string]*Connection),
-    }
-
-    m.Mounts[path] = mount
-    m.Unlock()
-    return mount, nil
+    mc.Mounts[mount.Source.Request.URL.Path] = mount
+    return nil
 }
 
 func (m MountpointCollection) DeleteMountpoint(id string) {
     m.Lock()
+    defer m.Unlock()
     delete(m.Mounts, id)
-    m.Unlock()
 }
 
-func (m MountpointCollection) GetMountpoint(id string) (mount *Mountpoint, ok bool) {
+func (m MountpointCollection) GetMountpoint(id string) (mount *Mountpoint) {
     m.RLock()
-    mount, ok = m.Mounts[id]
-    m.RUnlock()
-    return mount, ok
+    defer m.RUnlock()
+    return m.Mounts[id]
 }
