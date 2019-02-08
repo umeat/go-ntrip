@@ -44,7 +44,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 
     switch conn.Request.Method {
         case http.MethodPost:
-            mount := &Mountpoint{Source: conn, Clients: make(map[string]*Connection)} // TODO: Hide behind NewMountpoint
+            mount := &Mountpoint{Source: conn, Subscribers: make(map[string]*Connection)} // TODO: Hide behind NewMountpoint
             err := mounts.AddMountpoint(mount)
             if err != nil {
                 logger.Error("Mountpoint In Use")
@@ -71,14 +71,14 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
             }
 
             logger.Info("Accepted Client Connection")
-            mount.RegisterClient(conn)
+            mount.RegisterSubscriber(conn)
             for { // TODO: Come up with a Connection struct method name which makes sense for this
                 select {
                 case data, _ := <-conn.Channel:
                     fmt.Fprintf(conn.Writer, "%s", data)
                     conn.Writer.(http.Flusher).Flush()
                 case <-conn.Request.Context().Done():
-                    mount.DeregisterClient(conn)
+                    mount.DeregisterSubscriber(conn)
                     logger.Info("Client Disconnected - client closed connection")
                     return
                 case <-mount.Source.Request.Context().Done():

@@ -22,19 +22,19 @@ type Connection struct {
 type Mountpoint struct {
     sync.RWMutex
     Source *Connection
-    Clients map[string]*Connection
+    Subscribers map[string]*Connection // Could have a Subscriber interface with Channel()
 }
 
-func (mount *Mountpoint) RegisterClient(client *Connection) {
+func (mount *Mountpoint) RegisterSubscriber(subscriber *Connection) {
     mount.Lock()
     defer mount.Unlock()
-    mount.Clients[client.Id] = client
+    mount.Subscribers[subscriber.Id] = subscriber
 }
 
-func (mount *Mountpoint) DeregisterClient(client *Connection) {
+func (mount *Mountpoint) DeregisterSubscriber(subscriber *Connection) { // Unsubscribe
     mount.Lock()
     defer mount.Unlock()
-    delete(mount.Clients, client.Id)
+    delete(mount.Subscribers, subscriber.Id)
 }
 
 func (mount *Mountpoint) ReadSourceData() { // Read data from Request Body and write to Source.Channel
@@ -46,17 +46,17 @@ func (mount *Mountpoint) ReadSourceData() { // Read data from Request Body and w
     }
 }
 
-func (mount *Mountpoint) Broadcast() { // Read data from Source.Channel and write to registered client channels
+func (mount *Mountpoint) Broadcast() { // Read data from Source.Channel and write to registered subscriber channels
     for {
         select {
         case data, _ := <-mount.Source.Channel:
             mount.RLock()
-            for _, client := range mount.Clients {
+            for _, subscriber := range mount.Subscribers {
                 select {
-                case client.Channel <- data:
+                case subscriber.Channel <- data:
                     continue
                 default:
-                    continue // The default case should not occur now that clients can be deregistered
+                    continue // The default case should not occur now that subscriber can be deregistered
                 }
             }
             mount.RUnlock()
