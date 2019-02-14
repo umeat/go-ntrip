@@ -4,6 +4,7 @@ import (
     "errors"
     "sync"
     "net/http"
+    "time"
 )
 
 type Authenticator interface {
@@ -60,6 +61,7 @@ func (mount *Mountpoint) ReadSourceData() { // Read data from Request Body and w
     }
 }
 
+//TODO: Return error
 func (mount *Mountpoint) Broadcast() { // Read data from Source.Channel and write to registered subscriber channels
     for {
         select {
@@ -74,6 +76,9 @@ func (mount *Mountpoint) Broadcast() { // Read data from Source.Channel and writ
                 }
             }
             mount.RUnlock()
+
+        case <-time.After(time.Second * 5):
+            return
 
         case <-mount.Source.Request.Context().Done():
             return
