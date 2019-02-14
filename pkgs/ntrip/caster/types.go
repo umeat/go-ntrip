@@ -11,37 +11,51 @@ type Authenticator interface {
 }
 
 
+type Subscriber interface {
+    Id() string
+    Channel() chan []byte
+}
+
+
 type Connection struct {
-    Id string
-    Channel chan []byte
+    id string
+    channel chan []byte
     Request *http.Request
     Writer http.ResponseWriter
+}
+
+func (conn *Connection) Id() string {
+    return conn.id
+}
+
+func (conn *Connection) Channel() chan []byte {
+    return conn.channel
 }
 
 
 type Mountpoint struct {
     sync.RWMutex
     Source *Connection
-    Subscribers map[string]*Connection // Could have a Subscriber interface with Channel()
+    Subscribers map[string]Subscriber
 }
 
-func (mount *Mountpoint) RegisterSubscriber(subscriber *Connection) {
+func (mount *Mountpoint) RegisterSubscriber(subscriber Subscriber) {
     mount.Lock()
     defer mount.Unlock()
-    mount.Subscribers[subscriber.Id] = subscriber
+    mount.Subscribers[subscriber.Id()] = subscriber
 }
 
-func (mount *Mountpoint) DeregisterSubscriber(subscriber *Connection) { // Unsubscribe
+func (mount *Mountpoint) DeregisterSubscriber(subscriber Subscriber) {
     mount.Lock()
     defer mount.Unlock()
-    delete(mount.Subscribers, subscriber.Id)
+    delete(mount.Subscribers, subscriber.Id())
 }
 
 func (mount *Mountpoint) ReadSourceData() { // Read data from Request Body and write to Source.Channel
     buf := make([]byte, 4096)
     nbytes, err := mount.Source.Request.Body.Read(buf)
     for ; err == nil; nbytes, err = mount.Source.Request.Body.Read(buf) {
-        mount.Source.Channel <- buf[:nbytes] // Can this block indefinitely
+        mount.Source.channel <- buf[:nbytes] // Can this block indefinitely
         buf = make([]byte, 4096)
     }
 }
@@ -49,11 +63,11 @@ func (mount *Mountpoint) ReadSourceData() { // Read data from Request Body and w
 func (mount *Mountpoint) Broadcast() { // Read data from Source.Channel and write to registered subscriber channels
     for {
         select {
-        case data, _ := <-mount.Source.Channel:
+        case data, _ := <-mount.Source.channel:
             mount.RLock()
             for _, subscriber := range mount.Subscribers {
                 select {
-                case subscriber.Channel <- data:
+                case subscriber.Channel() <- data:
                     continue
                 default:
                     continue // The default case should not occur now that subscriber can be deregistered

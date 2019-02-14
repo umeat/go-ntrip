@@ -44,7 +44,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 
     switch conn.Request.Method {
         case http.MethodPost:
-            mount := &Mountpoint{Source: conn, Subscribers: make(map[string]*Connection)} // TODO: Hide behind NewMountpoint
+            mount := &Mountpoint{Source: conn, Subscribers: make(map[string]Subscriber)} // TODO: Hide behind NewMountpoint
             err := mounts.AddMountpoint(mount)
             if err != nil {
                 logger.Error("Mountpoint In Use")
@@ -74,7 +74,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
             mount.RegisterSubscriber(conn)
             for { // TODO: Come up with a Connection struct method name which makes sense for this
                 select {
-                case data, _ := <-conn.Channel:
+                case data, _ := <-conn.channel:
                     fmt.Fprintf(conn.Writer, "%s", data)
                     conn.Writer.(http.Flusher).Flush()
                 case <-conn.Request.Context().Done():
