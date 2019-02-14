@@ -5,6 +5,7 @@ import (
     log "github.com/sirupsen/logrus"
     "github.com/satori/go.uuid"
     "fmt"
+    "time"
 )
 
 var (
@@ -14,8 +15,13 @@ var (
 
 func Serve(auth Authenticator) { // TODO: Serve should take a Config object of some description
     log.SetFormatter(&log.JSONFormatter{})
+    srv := &http.Server{
+        Addr: ":2101",
+        ReadTimeout: 5 * time.Second,
+        WriteTimeout: 10 * time.Second,
+    }
     http.HandleFunc("/", RequestHandler)
-    log.Fatal(http.ListenAndServe(":2101", nil))
+    log.Fatal(srv.ListenAndServe())
 }
 
 func RequestHandler(w http.ResponseWriter, r *http.Request) {
