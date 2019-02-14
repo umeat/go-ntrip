@@ -78,7 +78,6 @@ func (mount *Mountpoint) Broadcast() { // Read data from Source.Channel and writ
             mount.RUnlock()
 
         case <-time.After(time.Second * 5):
-            mount.Source.Request.Body.Close()
             return
 
         case <-mount.Source.Request.Context().Done():
