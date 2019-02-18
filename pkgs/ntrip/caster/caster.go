@@ -31,7 +31,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Ntrip-Version", "Ntrip/2.0")
     w.Header().Set("Server", "NTRIP GoCaster")
     w.Header().Set("Content-Type", "application/octet-stream")
-    w.Header().Set("Connection", "close")
 
     conn := &Connection{requestId, make(chan []byte, 10), r, w}
     defer conn.Request.Body.Close()
@@ -44,6 +43,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
 
     switch conn.Request.Method {
         case http.MethodPost:
+            w.Header().Set("Connection", "close") // only set Connection close for mountpoints
             mount := &Mountpoint{Source: conn, Subscribers: make(map[string]Subscriber)} // TODO: Hide behind NewMountpoint
             err := mounts.AddMountpoint(mount)
             if err != nil {
