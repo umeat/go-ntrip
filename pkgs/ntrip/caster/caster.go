@@ -9,13 +9,15 @@ import (
 
 var (
     mounts = MountpointCollection{Mounts: make(map[string]*Mountpoint)}
+    auth Authenticator
     // sourcetable = Sourcetable{....}
 )
 
-func Serve(auth Authenticator) { // TODO: Serve should take a Config object of some description
+func Serve(authenticator Authenticator) { // TODO: Serve should take a Config object of some description
+    auth = authenticator
     log.SetFormatter(&log.JSONFormatter{})
     http.HandleFunc("/", RequestHandler)
-    log.Fatal(http.ListenAndServe(":2101", nil))
+    log.Fatal(http.ListenAndServeTLS(":2101", "server.crt", "server.key", nil))
 }
 
 func RequestHandler(w http.ResponseWriter, r *http.Request) {
@@ -35,11 +37,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
     conn := &Connection{requestId, make(chan []byte, 10), r, w}
     defer conn.Request.Body.Close()
 
-    //if err := auth.Authenticate(conn); err != nil {
-    //    w.WriteHeader(http.StatusUnauthorized)
-    //    logger.Error("Unauthorized")
-    //    return
-    //}
+    if err := auth.Authenticate(conn); err != nil {
+        w.WriteHeader(http.StatusUnauthorized)
+        logger.Error("Unauthorized - ", err)
+        return
+    }
 
     switch conn.Request.Method {
         case http.MethodPost:

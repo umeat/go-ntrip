@@ -10,7 +10,6 @@ import (
     "crypto/sha256"
     "encoding/base64"
     "errors"
-    "os"
 )
 
 func SecretHash(username, clientID, clientSecret string) string {
@@ -25,10 +24,10 @@ type Cognito struct {
     Cip *cognitoidentityprovider.CognitoIdentityProvider
 }
 
-func NewCognitoAuthorizer() (auth Cognito, err error) {
+func NewCognitoAuthorizer(userPoolId, clientId string) (auth Cognito, err error) {
     // TODO: Load from config - not secret, using AWS credentials for secret
-    auth.UserPoolId = os.Getenv("COGNITO_USER_POOL_ID")
-    auth.ClientId = os.Getenv("COGNITO_CLIENT_ID")
+    auth.UserPoolId = userPoolId
+    auth.ClientId = clientId
 
     auth.Cip = cognitoidentityprovider.New(session.Must(session.NewSession()))
     return auth, err
