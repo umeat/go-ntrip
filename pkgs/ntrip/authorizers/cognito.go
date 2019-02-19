@@ -1,15 +1,17 @@
-package caster
-
-// TODO: This module could be in a different package - maybe in with cmd/ntripcaster
+package authorizers
 
 import (
     "github.com/aws/aws-sdk-go/aws"
     "github.com/aws/aws-sdk-go/aws/session"
     "github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
+    "github.com/umeat/go-ntrip/pkgs/ntrip"
     "crypto/hmac"
     "crypto/sha256"
     "encoding/base64"
     "errors"
+
+    "github.com/dgrijalva/jwt-go"
+    "fmt"
 )
 
 func SecretHash(username, clientID, clientSecret string) string {
@@ -33,7 +35,7 @@ func NewCognitoAuthorizer(userPoolId, clientId string) (auth Cognito, err error)
     return auth, err
 }
 
-func (auth Cognito) Authenticate(conn *Connection) (err error) {
+func (auth Cognito) Authenticate(conn *ntrip.Connection) (err error) {
     username, password, ok := conn.Request.BasicAuth() // TODO: Implement Bearer auth
     if !ok {
         return errors.New("Basic auth not provided")
@@ -49,10 +51,13 @@ func (auth Cognito) Authenticate(conn *Connection) (err error) {
         UserPoolId: aws.String(auth.UserPoolId),
     }
 
-    _, err = auth.Cip.AdminInitiateAuth(params) // TODO: Inspect response for claims and implement path based auth
+    resp, err := auth.Cip.AdminInitiateAuth(params) // TODO: Inspect response for claims and implement path based auth
     if err != nil {
         return err
     }
+
+    token, _ := jwt.Parse(*resp.AuthenticationResult.IdToken, nil)
+    fmt.Println(token.Claims)
 
     // Not sure if it makes sense to return the ID token in a header
     // Usually you would have the auth endpoint be elsewhere and return the token in the body of the response, but we don't really have the luxury of palming it off
