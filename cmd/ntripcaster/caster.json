@@ -1,8 +1,11 @@
 {
+    "Http": {
+        "Port": ":2101"
+    },
     "Https": {
-        "Port": ":2101",
-        "CertificateFile": "cmd/ntripcaster/server.crt",
-        "PrivateKeyFile": "cmd/ntripcaster/server.key"
+        "Port": ":2102",
+        "CertificateFile": "server.crt",
+        "PrivateKeyFile": "server.key"
     },
     "Cognito": {
         "UserPoolId": "ap-southeast-2_Vr0EvkjSQ",

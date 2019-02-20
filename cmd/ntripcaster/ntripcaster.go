@@ -2,8 +2,8 @@ package main
 
 import (
     "github.com/micro/go-config"
-    "github.com/umeat/go-ntrip/pkgs/ntrip"
-    "github.com/umeat/go-ntrip/pkgs/ntrip/authorizers"
+    "github.com/umeat/go-ntrip/ntrip/caster"
+    "github.com/umeat/go-ntrip/ntrip/caster/authorizers"
 )
 
 type AuthConf struct {
@@ -16,17 +16,17 @@ type CognitoConf struct {
 }
 
 var (
-    caster = ntrip.Caster{Mounts: make(map[string]*ntrip.Mountpoint)} //TODO: Hide behind NewCaster
+    ntripcaster = caster.Caster{Mounts: make(map[string]*caster.Mountpoint)} //TODO: Hide behind NewCaster
     auth AuthConf
 )
 
 func main() {
     config.LoadFile("cmd/ntripcaster/caster.json")
-    config.Scan(&caster.Config)
+    config.Scan(&ntripcaster.Config)
 
     // This is an example of how custom auth can receive config from the same source as Caster
     config.Scan(&auth)
-    caster.Authenticator, _ = authorizers.NewCognitoAuthorizer(auth.Cognito.UserPoolId, auth.Cognito.ClientId)
+    ntripcaster.Authenticator, _ = authorizers.NewCognitoAuthorizer(auth.Cognito.UserPoolId, auth.Cognito.ClientId)
 
-    caster.ServeTLS()
+    ntripcaster.Serve()
 }

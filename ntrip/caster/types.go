@@ -1,4 +1,4 @@
-package ntrip
+package caster
 
 import (
     "errors"

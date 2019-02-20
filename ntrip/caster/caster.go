@@ -1,4 +1,4 @@
-package ntrip
+package caster
 
 import (
     "net/http"
@@ -30,6 +30,12 @@ type HttpsConfig struct {
     PrivateKeyFile string
 }
 
+func (caster Caster) Serve() {
+    log.SetFormatter(&log.JSONFormatter{})
+    http.HandleFunc("/", caster.RequestHandler)
+    log.Fatal(http.ListenAndServe(caster.Config.Http.Port, nil))
+}
+
 func (caster Caster) ServeTLS() {
     log.SetFormatter(&log.JSONFormatter{})
     http.HandleFunc("/", caster.RequestHandler)
@@ -37,7 +43,7 @@ func (caster Caster) ServeTLS() {
 }
 
 func (caster Caster) RequestHandler(w http.ResponseWriter, r *http.Request) {
-    requestId := uuid.Must(uuid.NewV4()).String()
+    requestId := uuid.Must(uuid.NewV4(), nil).String()
     logger := log.WithFields(log.Fields{
         "request_id": requestId,
         "path": r.URL.Path,

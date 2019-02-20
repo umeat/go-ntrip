@@ -3,10 +3,12 @@ NTRIP Caster / Client / Server implementation in Go
 
 ### Installation
 ```
-go get github.com/umeat/go-ntrip/pkg/ntrip
+git clone https://github.com/umeat/go-ntrip && cd go-ntrip
+go build ./...
+go install ./...
+
+# or
+go get github.com/umeat/go-ntrip/...
 ```
 
-Or to install package files and build the ntripcaster app
-```
-go get github.com/umeat/go-ntrip/cmd/ntripcaster
-```
+Application in `cmd/ntripcaster/` configurable with `cmd/ntripcaster/caster.conf`.

@@ -4,7 +4,7 @@ import (
     "github.com/aws/aws-sdk-go/aws"
     "github.com/aws/aws-sdk-go/aws/session"
     "github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
-    "github.com/umeat/go-ntrip/pkgs/ntrip"
+    "github.com/umeat/go-ntrip/ntrip/caster"
     "crypto/hmac"
     "crypto/sha256"
     "encoding/base64"
@@ -35,7 +35,7 @@ func NewCognitoAuthorizer(userPoolId, clientId string) (auth Cognito, err error)
     return auth, err
 }
 
-func (auth Cognito) Authenticate(conn *ntrip.Connection) (err error) {
+func (auth Cognito) Authenticate(conn *caster.Connection) (err error) {
     username, password, ok := conn.Request.BasicAuth() // TODO: Implement Bearer auth
     if !ok {
         return errors.New("Basic auth not provided")
