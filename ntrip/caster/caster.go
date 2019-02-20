@@ -15,31 +15,16 @@ type Caster struct {
     Config Config
 }
 
-type Config struct {
-    Http HttpConfig
-    Https HttpsConfig
-}
-
-type HttpConfig struct {
-    Port string
-}
-
-type HttpsConfig struct {
-    Port string
-    CertificateFile string
-    PrivateKeyFile string
-}
-
-func (caster Caster) Serve() {
+func (caster Caster) Serve() error {
     log.SetFormatter(&log.JSONFormatter{})
     http.HandleFunc("/", caster.RequestHandler)
-    log.Fatal(http.ListenAndServe(caster.Config.Http.Port, nil))
+    return http.ListenAndServe(caster.Config.Http.Port, nil)
 }
 
-func (caster Caster) ServeTLS() {
+func (caster Caster) ServeTLS() error {
     log.SetFormatter(&log.JSONFormatter{})
     http.HandleFunc("/", caster.RequestHandler)
-    log.Fatal(http.ListenAndServeTLS(caster.Config.Https.Port, caster.Config.Https.CertificateFile, caster.Config.Https.PrivateKeyFile, nil))
+    return http.ListenAndServeTLS(caster.Config.Https.Port, caster.Config.Https.CertificateFile, caster.Config.Https.PrivateKeyFile, nil)
 }
 
 func (caster Caster) RequestHandler(w http.ResponseWriter, r *http.Request) {
