@@ -12,22 +12,25 @@ type Caster struct {
     sync.RWMutex
     Mounts map[string]*Mountpoint
     Authenticator Authenticator
-    Config Config
 }
 
-func (caster Caster) Serve() error {
-    log.SetFormatter(&log.JSONFormatter{})
-    http.HandleFunc("/", caster.RequestHandler)
-    return http.ListenAndServe(caster.Config.Http.Port, nil)
+func (caster Caster) Serve(port string) error {
+    server := &http.Server{
+        Addr: port,
+        Handler: caster,
+    }
+    return server.ListenAndServe()
 }
 
-func (caster Caster) ServeTLS() error {
-    log.SetFormatter(&log.JSONFormatter{})
-    http.HandleFunc("/", caster.RequestHandler)
-    return http.ListenAndServeTLS(caster.Config.Https.Port, caster.Config.Https.CertificateFile, caster.Config.Https.PrivateKeyFile, nil)
+func (caster Caster) ServeTLS(port, certificate, key string) error {
+    server := &http.Server{
+        Addr: port,
+        Handler: caster,
+    }
+    return server.ListenAndServeTLS(certificate, key)
 }
 
-func (caster Caster) RequestHandler(w http.ResponseWriter, r *http.Request) {
+func (caster Caster) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     requestId := uuid.Must(uuid.NewV4(), nil).String()
     logger := log.WithFields(log.Fields{
         "request_id": requestId,
@@ -44,14 +47,14 @@ func (caster Caster) RequestHandler(w http.ResponseWriter, r *http.Request) {
     conn := &Connection{requestId, make(chan []byte, 10), r, w}
     defer conn.Request.Body.Close()
 
+    if err := caster.Authenticator.Authenticate(conn); err != nil {
+        w.WriteHeader(http.StatusUnauthorized)
+        logger.Error("Unauthorized - ", err)
+        return
+    }
+
     switch conn.Request.Method {
         case http.MethodPost:
-            if err := caster.Authenticator.Authenticate(conn); err != nil {
-                w.WriteHeader(http.StatusUnauthorized)
-                logger.Error("Unauthorized - ", err)
-                return
-            }
-
             w.Header().Set("Connection", "close") // only set Connection close for mountpoints
             mount := &Mountpoint{Source: conn, Subscribers: make(map[string]Subscriber)} // TODO: Hide behind NewMountpoint
             err := caster.AddMountpoint(mount)
