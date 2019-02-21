@@ -11,7 +11,7 @@ import (
 type Caster struct {
     sync.RWMutex
     Mounts map[string]*Mountpoint
-    Authenticator Authenticator
+    Authorizer Authorizer
 }
 
 func (caster Caster) ListenHTTP(port string) error {
@@ -48,7 +48,7 @@ func (caster Caster) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     conn := &Connection{requestId, make(chan []byte, 10), r, w}
     defer conn.Request.Body.Close()
 
-    if err := caster.Authenticator.Authenticate(conn); err != nil {
+    if err := caster.Authorizer.Authorize(conn); err != nil {
         w.WriteHeader(http.StatusUnauthorized)
         logger.Error("Unauthorized - ", err)
         return

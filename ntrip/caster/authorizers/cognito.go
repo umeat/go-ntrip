@@ -33,7 +33,7 @@ func NewCognitoAuthorizer(userPoolId, clientId string) (auth Cognito, err error)
     return auth, err
 }
 
-func (auth Cognito) Authenticate(conn *caster.Connection) (err error) {
+func (auth Cognito) Authorize(conn *caster.Connection) (err error) {
     switch conn.Request.Method {
     case "GET":
         return nil // TODO: Implement list of Closed mountpoints for which a client needs authorized access

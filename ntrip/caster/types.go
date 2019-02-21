@@ -7,11 +7,6 @@ import (
     "time"
 )
 
-type Authenticator interface {
-    Authenticate(*Connection) error
-}
-
-
 type Subscriber interface {
     Id() string
     Channel() chan []byte
@@ -113,4 +108,9 @@ func (caster Caster) GetMountpoint(id string) (mount *Mountpoint) {
     caster.RLock()
     defer caster.RUnlock()
     return caster.Mounts[id]
+}
+
+
+type Authorizer interface {
+    Authorize(*Connection) error
 }

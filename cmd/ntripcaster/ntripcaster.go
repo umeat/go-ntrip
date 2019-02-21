@@ -8,7 +8,7 @@ import (
 )
 
 var (
-    ntripcaster = caster.Caster{Mounts: make(map[string]*caster.Mountpoint)} //TODO: Hide behind NewCaster which can include a DefaultAuthenticator
+    ntripcaster = caster.Caster{Mounts: make(map[string]*caster.Mountpoint)} // TODO: Hide behind NewCaster which can include a DefaultAuthenticator
     conf Config
 )
 
@@ -18,7 +18,7 @@ func main() {
     config.LoadFile("cmd/ntripcaster/caster.json")
     config.Scan(&conf)
 
-    ntripcaster.Authenticator, _ = authorizers.NewCognitoAuthorizer(conf.Cognito.UserPoolId, conf.Cognito.ClientId)
+    ntripcaster.Authorizer, _ = authorizers.NewCognitoAuthorizer(conf.Cognito.UserPoolId, conf.Cognito.ClientId)
 
     go func() { panic(ntripcaster.ListenHTTPS(conf.Https.Port, conf.Https.CertificateFile, conf.Https.PrivateKeyFile)) }()
     panic(ntripcaster.ListenHTTP(conf.Http.Port))
