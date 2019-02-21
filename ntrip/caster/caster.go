@@ -14,7 +14,7 @@ type Caster struct {
     Authenticator Authenticator
 }
 
-func (caster Caster) Serve(port string) error {
+func (caster Caster) ListenHTTP(port string) error {
     server := &http.Server{
         Addr: port,
         Handler: caster,
@@ -22,7 +22,7 @@ func (caster Caster) Serve(port string) error {
     return server.ListenAndServe()
 }
 
-func (caster Caster) ServeTLS(port, certificate, key string) error {
+func (caster Caster) ListenHTTPS(port, certificate, key string) error {
     server := &http.Server{
         Addr: port,
         Handler: caster,
@@ -30,6 +30,7 @@ func (caster Caster) ServeTLS(port, certificate, key string) error {
     return server.ListenAndServeTLS(certificate, key)
 }
 
+// Allows the caster to implement the http.Handler interface
 func (caster Caster) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     requestId := uuid.Must(uuid.NewV4(), nil).String()
     logger := log.WithFields(log.Fields{

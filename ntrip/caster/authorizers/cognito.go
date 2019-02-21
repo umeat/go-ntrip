@@ -9,9 +9,6 @@ import (
     "crypto/sha256"
     "encoding/base64"
     "errors"
-
-    "github.com/dgrijalva/jwt-go"
-    "fmt"
 )
 
 func SecretHash(username, clientID, clientSecret string) string {
@@ -51,13 +48,10 @@ func (auth Cognito) Authenticate(conn *caster.Connection) (err error) {
         UserPoolId: aws.String(auth.UserPoolId),
     }
 
-    resp, err := auth.Cip.AdminInitiateAuth(params) // TODO: Inspect response for claims and implement path based auth
+    _, err = auth.Cip.AdminInitiateAuth(params) // TODO: Inspect response for claims and implement path based auth
     if err != nil {
         return err
     }
-
-    token, _ := jwt.Parse(*resp.AuthenticationResult.IdToken, nil)
-    fmt.Println(token.Claims)
 
     // Not sure if it makes sense to return the ID token in a header
     // Usually you would have the auth endpoint be elsewhere and return the token in the body of the response, but we don't really have the luxury of palming it off

@@ -20,6 +20,6 @@ func main() {
 
     ntripcaster.Authenticator, _ = authorizers.NewCognitoAuthorizer(conf.Cognito.UserPoolId, conf.Cognito.ClientId)
 
-    go func() { panic(ntripcaster.ServeTLS(conf.Https.Port, conf.Https.CertificateFile, conf.Https.PrivateKeyFile)) }()
-    panic(ntripcaster.Serve(conf.Http.Port))
+    go func() { panic(ntripcaster.ListenHTTPS(conf.Https.Port, conf.Https.CertificateFile, conf.Https.PrivateKeyFile)) }()
+    panic(ntripcaster.ListenHTTP(conf.Http.Port))
 }
