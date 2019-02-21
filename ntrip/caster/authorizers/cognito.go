@@ -9,6 +9,7 @@ import (
     "crypto/sha256"
     "encoding/base64"
     "errors"
+    "github.com/dgrijalva/jwt-go"
 )
 
 func SecretHash(username, clientID, clientSecret string) string {
@@ -33,28 +34,45 @@ func NewCognitoAuthorizer(userPoolId, clientId string) (auth Cognito, err error)
 }
 
 func (auth Cognito) Authenticate(conn *caster.Connection) (err error) {
-    username, password, ok := conn.Request.BasicAuth() // TODO: Implement Bearer auth
-    if !ok {
-        return errors.New("Basic auth not provided")
-    }
+    switch conn.Request.Method {
+    case "GET":
+        return nil // TODO: Implement list of Closed mountpoints for which a client needs authorized access
 
-    params := &cognitoidentityprovider.AdminInitiateAuthInput{
-        AuthFlow: aws.String("ADMIN_NO_SRP_AUTH"),
-        AuthParameters: map[string]*string{
-            "USERNAME": aws.String(username),
-            "PASSWORD": aws.String(password),
-        },
-        ClientId:   aws.String(auth.ClientId),
-        UserPoolId: aws.String(auth.UserPoolId),
-    }
+    case "POST":
+        username, password, auth_provided := conn.Request.BasicAuth()
+        if !auth_provided {
+            return errors.New("Basic auth not provided")
+        }
 
-    _, err = auth.Cip.AdminInitiateAuth(params) // TODO: Inspect response for claims and implement path based auth
-    if err != nil {
-        return err
+        params := &cognitoidentityprovider.AdminInitiateAuthInput{
+            AuthFlow: aws.String("ADMIN_NO_SRP_AUTH"),
+            AuthParameters: map[string]*string{
+                "USERNAME": aws.String(username),
+                "PASSWORD": aws.String(password),
+            },
+            ClientId:   aws.String(auth.ClientId),
+            UserPoolId: aws.String(auth.UserPoolId),
+        }
+
+        resp, err := auth.Cip.AdminInitiateAuth(params)
+        if err != nil {
+            return err
+        }
+
+        token, _ := jwt.Parse(*resp.AuthenticationResult.IdToken, nil)
+        if groups, exists := token.Claims.(jwt.MapClaims)["cognito:groups"]; exists {
+            for _, group := range groups.([]interface{}) {
+                if group == "mount:" + conn.Request.URL.Path[1:] {
+                    return nil
+                }
+            }
+        }
+
+        return errors.New("Not authorized for Mountpoint")
     }
 
     // Not sure if it makes sense to return the ID token in a header
     // Usually you would have the auth endpoint be elsewhere and return the token in the body of the response, but we don't really have the luxury of palming it off
     //conn.Writer.Header().Set("Authorization", "Bearer " + *resp.AuthenticationResult.IdToken) 
-    return nil
+    return errors.New("Method not implemented")
 }
