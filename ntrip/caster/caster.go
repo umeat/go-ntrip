@@ -4,22 +4,35 @@ import (
     "net/http"
     log "github.com/sirupsen/logrus"
     "github.com/satori/go.uuid"
+    "sync"
     "fmt"
 )
 
-var (
-    mounts = MountpointCollection{Mounts: make(map[string]*Mountpoint)}
-    // sourcetable = Sourcetable{....}
-)
-
-func Serve(auth Authenticator) { // TODO: Serve should take a Config object of some description
-    log.SetFormatter(&log.JSONFormatter{})
-    http.HandleFunc("/", RequestHandler)
-    log.Fatal(http.ListenAndServe(":2101", nil))
+type Caster struct {
+    sync.RWMutex
+    Mounts map[string]*Mountpoint
+    Authenticator Authenticator
 }
 
-func RequestHandler(w http.ResponseWriter, r *http.Request) {
-    requestId := uuid.Must(uuid.NewV4()).String()
+func (caster Caster) ListenHTTP(port string) error {
+    server := &http.Server{
+        Addr: port,
+        Handler: caster,
+    }
+    return server.ListenAndServe()
+}
+
+func (caster Caster) ListenHTTPS(port, certificate, key string) error {
+    server := &http.Server{
+        Addr: port,
+        Handler: caster,
+    }
+    return server.ListenAndServeTLS(certificate, key)
+}
+
+// Allows the caster to implement the http.Handler interface
+func (caster Caster) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    requestId := uuid.Must(uuid.NewV4(), nil).String()
     logger := log.WithFields(log.Fields{
         "request_id": requestId,
         "path": r.URL.Path,
@@ -35,17 +48,17 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
     conn := &Connection{requestId, make(chan []byte, 10), r, w}
     defer conn.Request.Body.Close()
 
-    //if err := auth.Authenticate(conn); err != nil {
-    //    w.WriteHeader(http.StatusUnauthorized)
-    //    logger.Error("Unauthorized")
-    //    return
-    //}
+    if err := caster.Authenticator.Authenticate(conn); err != nil {
+        w.WriteHeader(http.StatusUnauthorized)
+        logger.Error("Unauthorized - ", err)
+        return
+    }
 
     switch conn.Request.Method {
         case http.MethodPost:
             w.Header().Set("Connection", "close") // only set Connection close for mountpoints
             mount := &Mountpoint{Source: conn, Subscribers: make(map[string]Subscriber)} // TODO: Hide behind NewMountpoint
-            err := mounts.AddMountpoint(mount)
+            err := caster.AddMountpoint(mount)
             if err != nil {
                 logger.Error("Mountpoint In Use")
                 conn.Writer.WriteHeader(http.StatusConflict)
@@ -59,11 +72,11 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) {
             mount.Broadcast()
 
             logger.Info("Mountpoint Disconnected")
-            mounts.DeleteMountpoint(mount.Source.Request.URL.Path)
+            caster.DeleteMountpoint(mount.Source.Request.URL.Path)
             return
 
         case http.MethodGet:
-            mount := mounts.GetMountpoint(conn.Request.URL.Path)
+            mount := caster.GetMountpoint(conn.Request.URL.Path)
             if mount == nil {
                 logger.Error("No Existing Mountpoint") // Should probably reserve logger.Error for server errors
                 conn.Writer.WriteHeader(http.StatusNotFound)

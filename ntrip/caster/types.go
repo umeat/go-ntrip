@@ -87,30 +87,30 @@ func (mount *Mountpoint) Broadcast() { // Read data from Source.Channel and writ
 }
 
 
-type MountpointCollection struct {
-    sync.RWMutex
-    Mounts map[string]*Mountpoint
-}
+//type MountpointCollection struct {
+//    sync.RWMutex
+//    Mounts map[string]*Mountpoint
+//}
 
-func (mc MountpointCollection) AddMountpoint(mount *Mountpoint) (err error) {
-    mc.Lock()
-    defer mc.Unlock()
-    if _, ok := mc.Mounts[mount.Source.Request.URL.Path]; ok {
+func (caster Caster) AddMountpoint(mount *Mountpoint) (err error) {
+    caster.Lock()
+    defer caster.Unlock()
+    if _, ok := caster.Mounts[mount.Source.Request.URL.Path]; ok {
         return errors.New("Mountpoint in use")
     }
 
-    mc.Mounts[mount.Source.Request.URL.Path] = mount
+    caster.Mounts[mount.Source.Request.URL.Path] = mount
     return nil
 }
 
-func (m MountpointCollection) DeleteMountpoint(id string) {
-    m.Lock()
-    defer m.Unlock()
-    delete(m.Mounts, id)
+func (caster Caster) DeleteMountpoint(id string) {
+    caster.Lock()
+    defer caster.Unlock()
+    delete(caster.Mounts, id)
 }
 
-func (m MountpointCollection) GetMountpoint(id string) (mount *Mountpoint) {
-    m.RLock()
-    defer m.RUnlock()
-    return m.Mounts[id]
+func (caster Caster) GetMountpoint(id string) (mount *Mountpoint) {
+    caster.RLock()
+    defer caster.RUnlock()
+    return caster.Mounts[id]
 }

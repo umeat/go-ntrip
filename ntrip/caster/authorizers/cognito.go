@@ -1,16 +1,14 @@
-package caster
-
-// TODO: This module could be in a different package - maybe in with cmd/ntripcaster
+package authorizers
 
 import (
     "github.com/aws/aws-sdk-go/aws"
     "github.com/aws/aws-sdk-go/aws/session"
     "github.com/aws/aws-sdk-go/service/cognitoidentityprovider"
+    "github.com/umeat/go-ntrip/ntrip/caster"
     "crypto/hmac"
     "crypto/sha256"
     "encoding/base64"
     "errors"
-    "os"
 )
 
 func SecretHash(username, clientID, clientSecret string) string {
@@ -25,16 +23,16 @@ type Cognito struct {
     Cip *cognitoidentityprovider.CognitoIdentityProvider
 }
 
-func NewCognitoAuthorizer() (auth Cognito, err error) {
+func NewCognitoAuthorizer(userPoolId, clientId string) (auth Cognito, err error) {
     // TODO: Load from config - not secret, using AWS credentials for secret
-    auth.UserPoolId = os.Getenv("COGNITO_USER_POOL_ID")
-    auth.ClientId = os.Getenv("COGNITO_CLIENT_ID")
+    auth.UserPoolId = userPoolId
+    auth.ClientId = clientId
 
     auth.Cip = cognitoidentityprovider.New(session.Must(session.NewSession()))
     return auth, err
 }
 
-func (auth Cognito) Authenticate(conn *Connection) (err error) {
+func (auth Cognito) Authenticate(conn *caster.Connection) (err error) {
     username, password, ok := conn.Request.BasicAuth() // TODO: Implement Bearer auth
     if !ok {
         return errors.New("Basic auth not provided")

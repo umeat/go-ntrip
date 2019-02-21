@@ -1,10 +1,25 @@
 package main
 
 import (
-    "github.com/umeat/go-ntrip/pkgs/ntrip/caster"
+    log "github.com/sirupsen/logrus"
+    "github.com/micro/go-config"
+    "github.com/umeat/go-ntrip/ntrip/caster"
+    "github.com/umeat/go-ntrip/ntrip/caster/authorizers"
+)
+
+var (
+    ntripcaster = caster.Caster{Mounts: make(map[string]*caster.Mountpoint)} //TODO: Hide behind NewCaster which can include a DefaultAuthenticator
+    conf Config
 )
 
 func main() {
-    authorizer, _ := caster.NewCognitoAuthorizer() // TODO: take relevant variables from Config
-    caster.Serve(authorizer) // TODO: Pass in Config object - maybe https://micro.mu/docs/go-config.html#config
+    log.SetFormatter(&log.JSONFormatter{})
+
+    config.LoadFile("cmd/ntripcaster/caster.json")
+    config.Scan(&conf)
+
+    ntripcaster.Authenticator, _ = authorizers.NewCognitoAuthorizer(conf.Cognito.UserPoolId, conf.Cognito.ClientId)
+
+    go func() { panic(ntripcaster.ListenHTTPS(conf.Https.Port, conf.Https.CertificateFile, conf.Https.PrivateKeyFile)) }()
+    panic(ntripcaster.ListenHTTP(conf.Http.Port))
 }
