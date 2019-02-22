@@ -15,10 +15,10 @@ var (
 func main() {
     log.SetFormatter(&log.JSONFormatter{})
 
-    config.LoadFile("cmd/ntripcaster/caster.json")
+    config.LoadFile("cmd/ntripcaster/caster.json") // TODO: Take as command line parameter
     config.Scan(&conf)
 
-    ntripcaster.Authorizer, _ = authorizers.NewCognitoAuthorizer(conf.Cognito.UserPoolId, conf.Cognito.ClientId)
+    ntripcaster.Authorizer = authorizers.NewCognitoAuthorizer(conf.Cognito.UserPoolId, conf.Cognito.ClientId)
 
     go func() { panic(ntripcaster.ListenHTTPS(conf.Https.Port, conf.Https.CertificateFile, conf.Https.PrivateKeyFile)) }()
     panic(ntripcaster.ListenHTTP(conf.Http.Port))

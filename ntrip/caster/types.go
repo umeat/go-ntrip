@@ -7,12 +7,18 @@ import (
     "time"
 )
 
+// Authenticates and Authorizes HTTP(S) requests
+type Authorizer interface {
+    Authorize(*Connection) error
+}
+
+// Represents an object which can subscribe to streams from a Mountpoint
 type Subscriber interface {
     Id() string
     Channel() chan []byte
 }
 
-
+// A client HTTP(S) request, implements Subscriber interface
 type Connection struct {
     id string
     channel chan []byte
@@ -28,26 +34,19 @@ func (conn *Connection) Channel() chan []byte {
     return conn.channel
 }
 
-
+// POST requests to an endpoint result in the construction of a Mountpoint
+// Mountpoints can be subscribed to, Subscribers implement a Channel to which
+// POSTed data is written
 type Mountpoint struct {
     sync.RWMutex
+    // Connection from which data is received
     Source *Connection
+    // A collection of Subscribers to send data to
     Subscribers map[string]Subscriber
 }
 
-func (mount *Mountpoint) RegisterSubscriber(subscriber Subscriber) {
-    mount.Lock()
-    defer mount.Unlock()
-    mount.Subscribers[subscriber.Id()] = subscriber
-}
-
-func (mount *Mountpoint) DeregisterSubscriber(subscriber Subscriber) {
-    mount.Lock()
-    defer mount.Unlock()
-    delete(mount.Subscribers, subscriber.Id())
-}
-
-func (mount *Mountpoint) ReadSourceData() { // Read data from Request Body and write to Source.Channel
+// Read data from Source Request Body and write to Source.Channel
+func (mount *Mountpoint) ReadSourceData() {
     buf := make([]byte, 4096)
     nbytes, err := mount.Source.Request.Body.Read(buf)
     for ; err == nil; nbytes, err = mount.Source.Request.Body.Read(buf) {
@@ -56,8 +55,8 @@ func (mount *Mountpoint) ReadSourceData() { // Read data from Request Body and w
     }
 }
 
-//TODO: Return error
-func (mount *Mountpoint) Broadcast() { // Read data from Source.Channel and write to registered subscriber channels
+// Read data from Source.Channel and write to all registered Subscriber Channels
+func (mount *Mountpoint) Broadcast() error {
     for {
         select {
         case data, _ := <-mount.Source.channel:
@@ -72,45 +71,23 @@ func (mount *Mountpoint) Broadcast() { // Read data from Source.Channel and writ
             }
             mount.RUnlock()
 
-        case <-time.After(time.Second * 5):
-            return
+        case <-time.After(time.Second * 5): // TODO: Configurable Read timeout
+            return errors.New("Timeout reading from source")
 
         case <-mount.Source.Request.Context().Done():
-            return
+            return errors.New("Source closed connection")
         }
     }
 }
 
-
-//type MountpointCollection struct {
-//    sync.RWMutex
-//    Mounts map[string]*Mountpoint
-//}
-
-func (caster Caster) AddMountpoint(mount *Mountpoint) (err error) {
-    caster.Lock()
-    defer caster.Unlock()
-    if _, ok := caster.Mounts[mount.Source.Request.URL.Path]; ok {
-        return errors.New("Mountpoint in use")
-    }
-
-    caster.Mounts[mount.Source.Request.URL.Path] = mount
-    return nil
+func (mount *Mountpoint) RegisterSubscriber(subscriber Subscriber) {
+    mount.Lock()
+    defer mount.Unlock()
+    mount.Subscribers[subscriber.Id()] = subscriber
 }
 
-func (caster Caster) DeleteMountpoint(id string) {
-    caster.Lock()
-    defer caster.Unlock()
-    delete(caster.Mounts, id)
-}
-
-func (caster Caster) GetMountpoint(id string) (mount *Mountpoint) {
-    caster.RLock()
-    defer caster.RUnlock()
-    return caster.Mounts[id]
-}
-
-
-type Authorizer interface {
-    Authorize(*Connection) error
+func (mount *Mountpoint) DeregisterSubscriber(subscriber Subscriber) {
+    mount.Lock()
+    defer mount.Unlock()
+    delete(mount.Subscribers, subscriber.Id())
 }
