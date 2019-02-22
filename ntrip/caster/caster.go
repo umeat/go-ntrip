@@ -3,7 +3,6 @@ package caster
 import (
     "net/http"
     log "github.com/sirupsen/logrus"
-    "github.com/satori/go.uuid"
     "sync"
     "fmt"
     "errors"
@@ -45,18 +44,17 @@ func (caster Caster) ListenHTTPS(port, certificate, key string) error {
 // By allowing the Caster to implement the http.Handler interface, it can
 // be used as the Handler for http.Server in the Caster Listen functions
 func (caster Caster) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-    requestId := uuid.Must(uuid.NewV4(), nil).String()
-    logger := log.WithFields(log.Fields{
-        "request_id": requestId,
-        "path": r.URL.Path,
-        "method": r.Method,
-        "source_ip": r.RemoteAddr,
-    })
-
-    conn := &Connection{requestId, make(chan []byte, 10), r, w}
+    conn := NewConnection(w, r)
     defer conn.Request.Body.Close()
 
-    w.Header().Set("X-Request-Id", requestId)
+    logger := log.WithFields(log.Fields{
+        "request_id": conn.Id(),
+        "path": conn.Request.URL.Path,
+        "method": conn.Request.Method,
+        "source_ip": conn.Request.RemoteAddr,
+    })
+
+    w.Header().Set("X-Request-Id", conn.Id())
     w.Header().Set("Ntrip-Version", "Ntrip/2.0")
     w.Header().Set("Server", "NTRIP GoCaster")
     w.Header().Set("Content-Type", "application/octet-stream")

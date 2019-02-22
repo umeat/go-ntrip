@@ -5,6 +5,7 @@ import (
     "sync"
     "net/http"
     "time"
+    "github.com/satori/go.uuid"
 )
 
 // Authenticates and Authorizes HTTP(S) requests
@@ -22,8 +23,13 @@ type Subscriber interface {
 type Connection struct {
     id string
     channel chan []byte
-    Request *http.Request
     Writer http.ResponseWriter
+    Request *http.Request
+}
+
+func NewConnection(w http.ResponseWriter, r *http.Request) (conn *Connection) {
+    requestId := uuid.Must(uuid.NewV4(), nil).String()
+    return &Connection{requestId, make(chan []byte, 10), w, r}
 }
 
 func (conn *Connection) Id() string {
