@@ -152,6 +152,7 @@ func TestHTTPServer(t *testing.T) {
             w.Write([]byte(time.Now().String() + "\r\n"))
             time.Sleep(100 * time.Millisecond)
         }
+        r.Close()
         done<-true
     }()
 
