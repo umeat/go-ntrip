@@ -24,13 +24,12 @@ type Cognito struct {
     Cip *cognitoidentityprovider.CognitoIdentityProvider
 }
 
-func NewCognitoAuthorizer(userPoolId, clientId string) (auth Cognito, err error) {
-    // TODO: Load from config - not secret, using AWS credentials for secret
+func NewCognitoAuthorizer(userPoolId, clientId string) (auth Cognito) {
     auth.UserPoolId = userPoolId
     auth.ClientId = clientId
 
     auth.Cip = cognitoidentityprovider.New(session.Must(session.NewSession()))
-    return auth, err
+    return auth
 }
 
 func (auth Cognito) Authorize(conn *caster.Connection) (err error) {
@@ -44,7 +43,7 @@ func (auth Cognito) Authorize(conn *caster.Connection) (err error) {
             return errors.New("Basic auth not provided")
         }
 
-        params := &cognitoidentityprovider.AdminInitiateAuthInput{
+        params := cognitoidentityprovider.AdminInitiateAuthInput{
             AuthFlow: aws.String("ADMIN_NO_SRP_AUTH"),
             AuthParameters: map[string]*string{
                 "USERNAME": aws.String(username),
@@ -53,14 +52,22 @@ func (auth Cognito) Authorize(conn *caster.Connection) (err error) {
             ClientId:   aws.String(auth.ClientId),
             UserPoolId: aws.String(auth.UserPoolId),
         }
-
-        resp, err := auth.Cip.AdminInitiateAuth(params)
+        resp, err := auth.Cip.AdminInitiateAuth(&params)
         if err != nil {
             return err
         }
 
+        if resp.AuthenticationResult == nil {
+            return errors.New(*resp.ChallengeName)
+        }
+
         token, _ := jwt.Parse(*resp.AuthenticationResult.IdToken, nil)
-        if groups, exists := token.Claims.(jwt.MapClaims)["cognito:groups"]; exists {
+        claims, ok := token.Claims.(jwt.MapClaims)
+        if (!ok) {
+            return errors.New("No claims in JWT")
+        }
+
+        if groups, exists := claims["cognito:groups"]; exists {
             for _, group := range groups.([]interface{}) {
                 if group == "mount:" + conn.Request.URL.Path[1:] {
                     return nil
