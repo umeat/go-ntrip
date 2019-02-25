@@ -5,10 +5,14 @@ import (
     "github.com/micro/go-config"
     "github.com/umeat/go-ntrip/ntrip/caster"
     "github.com/umeat/go-ntrip/ntrip/caster/authorizers"
+    "time"
 )
 
 var (
-    ntripcaster = caster.Caster{Mounts: make(map[string]*caster.Mountpoint)} // TODO: Hide behind NewCaster which can include a DefaultAuthenticator
+    ntripcaster = caster.Caster{
+        Mounts: make(map[string]*caster.Mountpoint),
+        Timeout: 5 * time.Second,
+    } // TODO: Hide behind NewCaster which can include a DefaultAuthenticator
     conf Config
 )
 

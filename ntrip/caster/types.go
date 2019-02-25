@@ -52,17 +52,18 @@ type Mountpoint struct {
 }
 
 // Read data from Source Request Body and write to Source.Channel
-func (mount *Mountpoint) ReadSourceData() {
+func (mount *Mountpoint) ReadSourceData() error {
     buf := make([]byte, 4096)
     nbytes, err := mount.Source.Request.Body.Read(buf)
     for ; err == nil; nbytes, err = mount.Source.Request.Body.Read(buf) {
         mount.Source.channel <- buf[:nbytes] // Can this block indefinitely
         buf = make([]byte, 4096)
     }
+    return err
 }
 
 // Read data from Source.Channel and write to all registered Subscriber Channels
-func (mount *Mountpoint) Broadcast() error {
+func (mount *Mountpoint) Broadcast(timeout time.Duration) error {
     for {
         select {
         case data, _ := <-mount.Source.channel:
@@ -77,7 +78,7 @@ func (mount *Mountpoint) Broadcast() error {
             }
             mount.RUnlock()
 
-        case <-time.After(time.Second * 5): // TODO: Configurable Read timeout
+        case <-time.After(timeout):
             return errors.New("Timeout reading from source")
 
         case <-mount.Source.Request.Context().Done():
