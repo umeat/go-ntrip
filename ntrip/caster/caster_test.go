@@ -10,6 +10,7 @@ import (
     "errors"
     "io"
     "time"
+    "crypto/tls"
 )
 
 type MockAuth struct {}
@@ -144,7 +145,7 @@ func TestHTTPServer(t *testing.T) {
     go cast.ListenHTTP(":2101")
     time.Sleep(100 * time.Millisecond)
     r, w := io.Pipe()
-    resp, err := http.Post("http://localhost:2101/test", "application/octet-stream", r)
+    resp, err := http.Post("http://localhost:2101/http", "application/octet-stream", r)
     done := make(chan bool, 1)
     go func() {
         for i := 0; i < 10; i += 1 {
@@ -163,9 +164,9 @@ func TestHTTPServer(t *testing.T) {
             resp.StatusCode, http.StatusOK)
     }
 
-    resp, err = http.Get("http://localhost:2101/test")
+    resp, err = http.Get("http://localhost:2101/http")
     if err != nil {
-        t.Errorf("failed to connect to mountpoint")
+        t.Errorf("failed to connect to mountpoint - " + err.Error())
         return
     }
     if resp.StatusCode != 200 {
@@ -177,4 +178,15 @@ func TestHTTPServer(t *testing.T) {
     resp.Body.Close()
 
     <-done
+}
+
+func TestHTTSServer(t *testing.T) {
+    http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+    go cast.ListenHTTPS(":2102", "../../cert.pem", "../../key.pem")
+    time.Sleep(100 * time.Millisecond)
+    _, err := http.Get("https://localhost:2102/https")
+    if err != nil {
+        t.Errorf("failed to connect to caster - " + err.Error())
+        return
+    }
 }
