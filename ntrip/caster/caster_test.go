@@ -143,7 +143,6 @@ func TestMountpointMethods(t *testing.T) {
 func TestHTTPServer(t *testing.T) {
     go cast.ListenHTTP(":2101")
     r, w := io.Pipe()
-    http.Post("http://0.0.0.0:2101/test", "", r)
     go func() {
         for i := 0; i < 10; i += 1 {
             w.Write([]byte(time.Now().String() + "\r\n"))
@@ -151,12 +150,21 @@ func TestHTTPServer(t *testing.T) {
         }
     }()
 
-    resp, err := http.Get("http://0.0.0.0:2101/test")
+    resp, err := http.Post("http://0.0.0.0:2101/test", "", r)
+    if err != nil {
+        t.Errorf("failed to connect to caster")
+    }
+    if resp.StatusCode != 200 {
+        t.Errorf("POST request returned wrong status code: got %v want %v",
+            resp.StatusCode, http.StatusOK)
+    }
+
+    resp, err = http.Get("http://0.0.0.0:2101/test")
     if err != nil {
         t.Errorf("failed to connect to mountpoint")
     }
     if resp.StatusCode != 200 {
-        t.Errorf("handler returned wrong status code: got %v want %v",
+        t.Errorf("GET request returned wrong status code: got %v want %v",
             resp.StatusCode, http.StatusOK)
     }
 
