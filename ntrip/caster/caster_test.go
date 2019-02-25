@@ -143,7 +143,7 @@ func TestMountpointMethods(t *testing.T) {
 func TestHTTPServer(t *testing.T) {
     go cast.ListenHTTP(":2101")
     r, w := io.Pipe()
-    http.Post("http://localhost:2101/test", "", r)
+    http.Post("http://0.0.0.0:2101/test", "", r)
     go func() {
         for i := 0; i < 10; i += 1 {
             w.Write([]byte(time.Now().String() + "\r\n"))
@@ -151,7 +151,7 @@ func TestHTTPServer(t *testing.T) {
         }
     }()
 
-    resp, err := http.Get("http://localhost:2101/test")
+    resp, err := http.Get("http://0.0.0.0:2101/test")
     if err != nil {
         t.Errorf("failed to connect to mountpoint")
     }
