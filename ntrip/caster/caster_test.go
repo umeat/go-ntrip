@@ -171,6 +171,6 @@ func TestHTTPServer(t *testing.T) {
             resp.StatusCode, http.StatusOK)
     }
 
-    resp.Body.Read([]byte{})
     resp.Body.Close()
+    resp.Body.Read([]byte{})
 }
