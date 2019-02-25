@@ -16,7 +16,6 @@ github.com/aws/aws-sdk-go v1.15.27/go.mod h1:mFuSZ37Z9YOHbQEwBWztmVzqXrEkub65tZo
 github.com/aws/aws-sdk-go v1.15.57/go.mod h1:mFuSZ37Z9YOHbQEwBWztmVzqXrEkub65tZoCYDt7FT0=
 github.com/aws/aws-sdk-go v1.17.1 h1:RoOo57SetcPFGQ6vesLfWIpfnsbpEiuwiHq6aCvjrZw=
 github.com/aws/aws-sdk-go v1.17.1/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
-github.com/bamiaux/iobit v0.0.0-20170418073505-498159a04883 h1:XNtOMwxmV2PI/vuTHDZnFzGIFNUh8MK73q7+Kna7AXs=
 github.com/bamiaux/iobit v0.0.0-20170418073505-498159a04883/go.mod h1:9IjZnSQGh45J46HHS45pxuMJ6WFTtSXbaX0FoHDvxh8=
 github.com/benburkert/http v0.0.0-20140610191404-7b1c7d0a482c h1:YuvoJany/EHKyXIEMIjXhUk0SmixfzrShM6SQ7iXrLE=
 github.com/benburkert/http v0.0.0-20140610191404-7b1c7d0a482c/go.mod h1:+Yvt6P282G+eLLgc8ZWjdO/UUlmxiF4X4OSVFeRxuVE=
@@ -41,7 +40,6 @@ github.com/dustin/go-humanize v0.0.0-20171111073723-bb3d318650d4/go.mod h1:Htrtb
 github.com/fatih/color v1.7.0/go.mod h1:Zm6kSWBoL9eyXnKyktHP6abPY2pDugNf5KwzbycvMj4=
 github.com/fsnotify/fsnotify v1.4.7 h1:IXs+QLmnXW2CcXuY+8Mzv/fWEsPGWxqefPtCP5CnV9I=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
-github.com/geoscienceaustralia/go-rtcm v0.0.0-20190220051918-c57311901c51 h1:0ihIhmFxNqITSBKuzNqLLQXL5Q/RBtRyvNJ3koMohUU=
 github.com/geoscienceaustralia/go-rtcm v0.0.0-20190220051918-c57311901c51/go.mod h1:EdFqBCopmMR+tRUfqXmEMYcIxUjSwbnueaQguhRpRrI=
 github.com/ghodss/yaml v1.0.0 h1:wQHKEahhL6wmXdzwWG11gIVCkOv05bNOh+Rxn0yngAk=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=

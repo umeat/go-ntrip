@@ -145,11 +145,13 @@ func TestHTTPServer(t *testing.T) {
     time.Sleep(100 * time.Millisecond)
     r, w := io.Pipe()
     resp, err := http.Post("http://localhost:2101/test", "application/octet-stream", r)
+    done := make(chan bool, 1)
     go func() {
         for i := 0; i < 10; i += 1 {
             w.Write([]byte(time.Now().String() + "\r\n"))
             time.Sleep(100 * time.Millisecond)
         }
+        done<-true
     }()
 
     if err != nil {
@@ -173,4 +175,6 @@ func TestHTTPServer(t *testing.T) {
 
     resp.Body.Read([]byte{})
     resp.Body.Close()
+
+    <-done
 }
