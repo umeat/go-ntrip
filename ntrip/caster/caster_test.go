@@ -150,18 +150,20 @@ func TestHTTPServer(t *testing.T) {
         }
     }()
 
-    resp, err := http.Post("http://0.0.0.0:2101/test", "", r)
+    resp, err := http.Post("http://localhost:2101/test", "application/octet-stream", r)
     if err != nil {
-        t.Errorf("failed to connect to caster")
+        t.Errorf("failed to connect to caster - " + err.Error())
+        return
     }
     if resp.StatusCode != 200 {
         t.Errorf("POST request returned wrong status code: got %v want %v",
             resp.StatusCode, http.StatusOK)
     }
 
-    resp, err = http.Get("http://0.0.0.0:2101/test")
+    resp, err = http.Get("http://localhost:2101/test")
     if err != nil {
         t.Errorf("failed to connect to mountpoint")
+        return
     }
     if resp.StatusCode != 200 {
         t.Errorf("GET request returned wrong status code: got %v want %v",
