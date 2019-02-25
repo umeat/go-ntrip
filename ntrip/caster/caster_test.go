@@ -150,6 +150,7 @@ func TestHTTPServer(t *testing.T) {
         }
     }()
 
+    time.Sleep(100 * time.Millisecond)
     resp, err := http.Post("http://localhost:2101/test", "application/octet-stream", r)
     if err != nil {
         t.Errorf("failed to connect to caster - " + err.Error())
