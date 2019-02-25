@@ -142,16 +142,16 @@ func TestMountpointMethods(t *testing.T) {
 
 func TestHTTPServer(t *testing.T) {
     go cast.ListenHTTP(":2101")
+    time.Sleep(100 * time.Millisecond)
     r, w := io.Pipe()
+    resp, err := http.Post("http://localhost:2101/test", "application/octet-stream", r)
     go func() {
-        for i := 0; i < 10; i += 1 {
+        for i := 0; i < 20; i += 1 {
             w.Write([]byte(time.Now().String() + "\r\n"))
             time.Sleep(100 * time.Millisecond)
         }
     }()
 
-    time.Sleep(100 * time.Millisecond)
-    resp, err := http.Post("http://localhost:2101/test", "application/octet-stream", r)
     if err != nil {
         t.Errorf("failed to connect to caster - " + err.Error())
         return
