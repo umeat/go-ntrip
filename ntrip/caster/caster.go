@@ -23,6 +23,11 @@ type Caster struct {
     Timeout time.Duration
 }
 
+// Authenticates and Authorizes HTTP(S) requests
+type Authorizer interface {
+    Authorize(*Connection) error
+}
+
 // Starts HTTP server given a port in the format of the net/http library
 func (caster Caster) ListenHTTP(port string) error {
     server := &http.Server{

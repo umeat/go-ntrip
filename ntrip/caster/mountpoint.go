@@ -3,15 +3,8 @@ package caster
 import (
     "errors"
     "sync"
-    "net/http"
     "time"
-    "github.com/satori/go.uuid"
 )
-
-// Authenticates and Authorizes HTTP(S) requests
-type Authorizer interface {
-    Authorize(*Connection) error
-}
 
 // Represents an object which can subscribe to streams from a Mountpoint
 type Subscriber interface {
@@ -19,30 +12,9 @@ type Subscriber interface {
     Channel() chan []byte
 }
 
-// A client HTTP(S) request, implements Subscriber interface
-type Connection struct {
-    id string
-    channel chan []byte
-    Writer http.ResponseWriter
-    Request *http.Request
-}
-
-func NewConnection(w http.ResponseWriter, r *http.Request) (conn *Connection) {
-    requestId := uuid.Must(uuid.NewV4(), nil).String()
-    return &Connection{requestId, make(chan []byte, 10), w, r}
-}
-
-func (conn *Connection) Id() string {
-    return conn.id
-}
-
-func (conn *Connection) Channel() chan []byte {
-    return conn.channel
-}
-
-// POST requests to an endpoint result in the construction of a Mountpoint
+// POST requests to an endpoint result in the construction of a Mountpoint.
 // Mountpoints can be subscribed to, Subscribers implement a Channel to which
-// POSTed data is written
+// POSTed data is written.
 type Mountpoint struct {
     sync.RWMutex
     // Connection from which data is received
