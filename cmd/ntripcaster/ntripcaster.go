@@ -19,7 +19,7 @@ var (
 func main() {
     log.SetFormatter(&log.JSONFormatter{})
 
-    config.LoadFile("cmd/ntripcaster/caster.json") // TODO: Take as command line parameter
+    config.LoadFile("cmd/ntripcaster/caster.yml") // TODO: Take as command line parameter
     config.Scan(&conf)
 
     ntripcaster.Authorizer = authorizers.NewCognitoAuthorizer(conf.Cognito.UserPoolId, conf.Cognito.ClientId)
