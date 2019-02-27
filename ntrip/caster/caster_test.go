@@ -145,7 +145,6 @@ func TestHTTPServer(t *testing.T) {
     go cast.ListenHTTP(":2101")
     time.Sleep(100 * time.Millisecond)
     r, w := io.Pipe()
-    resp, err := http.Post("http://localhost:2101/http", "application/octet-stream", r)
     done := make(chan bool, 1)
     go func() {
         for i := 0; i < 10; i += 1 {
@@ -156,6 +155,7 @@ func TestHTTPServer(t *testing.T) {
         done<-true
     }()
 
+    resp, err := http.Post("http://localhost:2101/http", "application/octet-stream", r)
     if err != nil {
         t.Errorf("failed to connect to caster - " + err.Error())
         return
@@ -165,6 +165,7 @@ func TestHTTPServer(t *testing.T) {
             resp.StatusCode, http.StatusOK)
     }
 
+    // client request to be disconnected by client disconnect
     resp, err = http.Get("http://localhost:2101/http")
     if err != nil {
         t.Errorf("failed to connect to mountpoint - " + err.Error())
@@ -178,10 +179,16 @@ func TestHTTPServer(t *testing.T) {
     resp.Body.Read([]byte{})
     resp.Body.Close()
 
+    // client request to be disconnected by mount disconnect
+    resp, err = http.Get("http://localhost:2101/http")
+    if err != nil {
+        t.Errorf("failed to connect to mountpoint - " + err.Error())
+        return
+    }
     <-done
 }
 
-func TestHTTSServer(t *testing.T) {
+func TestHTTPSServer(t *testing.T) {
     http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
     go cast.ListenHTTPS(":2102", "../../cert.pem", "../../key.pem")
     time.Sleep(100 * time.Millisecond)
