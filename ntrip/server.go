@@ -6,23 +6,28 @@ import (
     "github.com/benburkert/http"
 )
 
-func Server(ntripCasterUrl string, reader io.ReadCloser, username string, password string) (err error) {
-    u, _ := url.Parse(ntripCasterUrl)
-    req := &http.Request{
-        Method: "POST",
-        ProtoMajor: 1,
-        ProtoMinor: 1,
-        URL: u,
-        TransferEncoding: []string{"chunked"},
-        Body: reader,
-        Header: make(map[string][]string),
+type Server struct {
+    http.Request
+}
+
+func NewServer(ntripCasterUrl string, reader io.ReadCloser) (server *Server, err error) {
+    u, err := url.Parse(ntripCasterUrl)
+    server = &Server{
+        Request: http.Request{
+            URL: u,
+            Body: reader,
+            Method: "POST",
+            ProtoMajor: 1,
+            ProtoMinor: 1,
+            TransferEncoding: []string{"chunked"},
+            Header: make(map[string][]string),
+        },
     }
+    server.Header.Set("User-Agent", "NTRIP GoClient")
+    server.Header.Set("Ntrip-Version", "Ntrip/2.0")
+    return server, err
+}
 
-    req.Header.Set("User-Agent", "NTRIP GoClient")
-    req.Header.Set("Ntrip-Version", "Ntrip/2.0")
-    req.SetBasicAuth(username, password)
-
-    go http.DefaultClient.Do(req)
-
-    return err
+func (server *Server) Connect() (resp *http.Response, err error) {
+    return http.DefaultClient.Do(&server.Request)
 }

@@ -2,32 +2,29 @@ package ntrip
 
 import (
     "net/url"
-    "io"
     "github.com/benburkert/http"
 )
 
-func Client(ntripCasterUrl string, username string, password string) (reader io.ReadCloser, err error) {
-    u, err := url.Parse(ntripCasterUrl)
-    if err != nil {
-        return reader, err
+type Client struct {
+    http.Request
+}
+
+func NewClient(casterUrl string) (client *Client, err error) {
+    u, err := url.Parse(casterUrl)
+    client = &Client{
+        Request: http.Request{
+            URL: u,
+            Method: "GET",
+            ProtoMajor: 1,
+            ProtoMinor: 1,
+            Header: make(map[string][]string),
+        },
     }
+    client.Header.Set("User-Agent", "NTRIP GoClient")
+    client.Header.Set("Ntrip-Version", "Ntrip/2.0")
+    return client, err
+}
 
-    req := &http.Request{
-        Method: "GET",
-        ProtoMajor: 1,
-        ProtoMinor: 1,
-        URL: u,
-        Header: make(map[string][]string),
-    }
-
-    req.Header.Set("User-Agent", "NTRIP GoClient")
-    req.Header.Set("Ntrip-Version", "Ntrip/2.0")
-    req.SetBasicAuth(username, password)
-
-    resp, err := http.DefaultClient.Do(req)
-    if err != nil {
-        return reader, err
-    }
-
-    return resp.Body, nil
+func (client *Client) Connect() (resp *http.Response, err error) {
+    return http.DefaultClient.Do(&client.Request)
 }
