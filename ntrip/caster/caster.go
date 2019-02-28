@@ -59,25 +59,26 @@ func (caster Caster) RequestHandler(w http.ResponseWriter, r *http.Request) {
         "source_ip": conn.Request.RemoteAddr,
     })
 
-    w.Header().Set("X-Request-Id", conn.Id())
-    w.Header().Set("Ntrip-Version", "Ntrip/2.0")
-    w.Header().Set("Server", "NTRIP GoCaster")
-    w.Header().Set("Content-Type", "application/octet-stream")
+    conn.Writer.Header().Set("X-Request-Id", conn.Id())
+    conn.Writer.Header().Set("Ntrip-Version", "Ntrip/2.0")
+    conn.Writer.Header().Set("Server", "NTRIP GoCaster")
 
     if err := caster.Authorizer.Authorize(conn); err != nil {
-        w.WriteHeader(http.StatusUnauthorized)
+        conn.Writer.Header().Set("Connection", "close")
+        conn.Writer.WriteHeader(http.StatusUnauthorized)
+        conn.Writer.(http.Flusher).Flush()
         logger.Error("Unauthorized - ", err)
         return
     }
 
     switch conn.Request.Method {
     case http.MethodPost:
-        w.Header().Set("Connection", "close") // only set Connection close for mountpoints
+        conn.Writer.Header().Set("Connection", "close") // only set Connection close for mountpoints
         mount := &Mountpoint{Source: conn, Subscribers: make(map[string]Subscriber)} // TODO: Hide behind NewMountpoint
-        err := caster.AddMountpoint(mount)
-        if err != nil {
-            logger.Error("Mountpoint In Use")
+        if err := caster.AddMountpoint(mount); err != nil {
             conn.Writer.WriteHeader(http.StatusConflict)
+            conn.Writer.(http.Flusher).Flush()
+            logger.Error(err.Error())
             return
         }
 
@@ -85,7 +86,7 @@ func (caster Caster) RequestHandler(w http.ResponseWriter, r *http.Request) {
         logger.Info("Mountpoint Connected")
 
         go mount.ReadSourceData()
-        err = mount.Broadcast(caster.Timeout)
+        err := mount.Broadcast(caster.Timeout)
 
         logger.Info("Mountpoint Disconnected - " + err.Error())
         caster.DeleteMountpoint(mount.Source.Request.URL.Path)
@@ -94,11 +95,12 @@ func (caster Caster) RequestHandler(w http.ResponseWriter, r *http.Request) {
     case http.MethodGet:
         mount := caster.GetMountpoint(conn.Request.URL.Path)
         if mount == nil {
-            logger.Error("No Existing Mountpoint") // Should probably reserve logger.Error for server errors
             conn.Writer.WriteHeader(http.StatusNotFound)
+            logger.Error("No Existing Mountpoint") // Should probably reserve logger.Error for server errors
             return
         }
 
+        conn.Writer.Header().Set("Content-Type", "application/octet-stream")
         logger.Info("Accepted Client Connection")
         mount.RegisterSubscriber(conn)
         for { // TODO: Come up with a Connection struct method name which makes sense for this
@@ -120,8 +122,8 @@ func (caster Caster) RequestHandler(w http.ResponseWriter, r *http.Request) {
         }
 
     default:
-        logger.Error("Request Method Not Implemented")
         conn.Writer.WriteHeader(http.StatusNotImplemented)
+        logger.Error("Request Method Not Implemented")
     }
 }
 

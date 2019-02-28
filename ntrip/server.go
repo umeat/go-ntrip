@@ -7,13 +7,13 @@ import (
 )
 
 type Server struct {
-    http.Request
+    *http.Request
 }
 
 func NewServer(ntripCasterUrl string, reader io.ReadCloser) (server *Server, err error) {
     u, err := url.Parse(ntripCasterUrl)
     server = &Server{
-        Request: http.Request{
+        Request: &http.Request{
             URL: u,
             Body: reader,
             Method: "POST",
@@ -29,5 +29,5 @@ func NewServer(ntripCasterUrl string, reader io.ReadCloser) (server *Server, err
 }
 
 func (server *Server) Connect() (resp *http.Response, err error) {
-    return http.DefaultClient.Do(&server.Request)
+    return http.DefaultClient.Do(server.Request)
 }
