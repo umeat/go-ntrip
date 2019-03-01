@@ -8,14 +8,14 @@ import (
 
 type Server struct {
     *http.Request
+    writer *io.PipeWriter
 }
 
-func NewServer(ntripCasterUrl string, reader io.ReadCloser) (server *Server, err error) {
+func NewServer(ntripCasterUrl string) (server *Server, err error) {
     u, err := url.Parse(ntripCasterUrl)
     server = &Server{
         Request: &http.Request{
             URL: u,
-            Body: reader,
             Method: "POST",
             ProtoMajor: 1,
             ProtoMinor: 1,
@@ -29,5 +29,12 @@ func NewServer(ntripCasterUrl string, reader io.ReadCloser) (server *Server, err
 }
 
 func (server *Server) Connect() (resp *http.Response, err error) {
+    reader, writer := io.Pipe()
+    server.Request.Body = reader
+    server.writer = writer
     return http.DefaultClient.Do(server.Request)
+}
+
+func (server *Server) Write(data []byte) (n int, err error) {
+    return server.writer.Write(data)
 }
