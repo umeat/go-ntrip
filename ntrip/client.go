@@ -6,13 +6,13 @@ import (
 )
 
 type Client struct {
-    http.Request
+    *http.Request
 }
 
 func NewClient(casterUrl string) (client *Client, err error) {
     u, err := url.Parse(casterUrl)
     client = &Client{
-        Request: http.Request{
+        Request: &http.Request{
             URL: u,
             Method: "GET",
             ProtoMajor: 1,
@@ -26,5 +26,5 @@ func NewClient(casterUrl string) (client *Client, err error) {
 }
 
 func (client *Client) Connect() (resp *http.Response, err error) {
-    return http.DefaultClient.Do(&client.Request)
+    return http.DefaultClient.Do(client.Request)
 }
