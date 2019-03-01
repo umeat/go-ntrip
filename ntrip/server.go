@@ -2,6 +2,7 @@ package ntrip
 
 import (
     "io"
+    "errors"
     "net/url"
     "github.com/benburkert/http"
 )
@@ -36,5 +37,8 @@ func (server *Server) Connect() (resp *http.Response, err error) {
 }
 
 func (server *Server) Write(data []byte) (n int, err error) {
+    if server.writer == nil {
+        return 0, errors.New("not connected")
+    }
     return server.writer.Write(data)
 }
