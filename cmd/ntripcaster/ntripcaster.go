@@ -6,6 +6,7 @@ import (
     "github.com/umeat/go-ntrip/ntrip/caster"
     "github.com/umeat/go-ntrip/ntrip/caster/authorizers"
     "time"
+    "flag"
 )
 
 var (
@@ -19,11 +20,14 @@ var (
 func main() {
     log.SetFormatter(&log.JSONFormatter{})
 
-    config.LoadFile("cmd/ntripcaster/caster.yml") // TODO: Take as command line parameter
+    configFile := flag.String("config", "cmd/ntripcaster/caster.json", "Path to config file")
+    flag.Parse()
+
+    config.LoadFile(*configFile)
     config.Scan(&conf)
 
     ntripcaster.Authorizer = authorizers.NewCognitoAuthorizer(conf.Cognito.UserPoolId, conf.Cognito.ClientId)
 
-    go func() { panic(ntripcaster.ListenHTTPS(conf.Https.Port, conf.Https.CertificateFile, conf.Https.PrivateKeyFile)) }()
-    panic(ntripcaster.ListenHTTP(conf.Http.Port))
+    go func() { panic(ntripcaster.ListenHTTP(conf.Http.Port)) }()
+    panic(ntripcaster.ListenHTTPS(conf.Https.Port, conf.Https.CertificateFile, conf.Https.PrivateKeyFile))
 }
