@@ -3,8 +3,8 @@ Http:
 
 Https:
     Port: ":2102"
-    CertificateFile: "cert.pem"
-    PrivateKeyFile: "key.pem"
+    CertificateFile: "/root/config/cert.pem"
+    PrivateKeyFile: "/root/config/key.pem"
 
 Cognito:
     UserPoolId: "ap-southeast-2_Vr0EvkjSQ"

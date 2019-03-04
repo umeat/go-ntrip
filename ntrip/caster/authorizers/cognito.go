@@ -27,7 +27,6 @@ type Cognito struct {
 func NewCognitoAuthorizer(userPoolId, clientId string) (auth Cognito) {
     auth.UserPoolId = userPoolId
     auth.ClientId = clientId
-
     auth.Cip = cognitoidentityprovider.New(session.Must(session.NewSession()))
     return auth
 }
