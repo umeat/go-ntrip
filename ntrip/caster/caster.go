@@ -29,7 +29,7 @@ type Authorizer interface {
 }
 
 // ListenHTTP starts a HTTP server given a port in the format of the net/http library
-func (caster Caster) ListenHTTP(port string) error {
+func (caster *Caster) ListenHTTP(port string) error {
 	server := &http.Server{
 		Addr:    port,
 		Handler: http.HandlerFunc(caster.RequestHandler),
@@ -39,7 +39,7 @@ func (caster Caster) ListenHTTP(port string) error {
 
 // ListenHTTPS starts HTTPS server given a port in the format of the net/http library,
 // a path to the certificate file, and a path to the private key file
-func (caster Caster) ListenHTTPS(port, certificate, key string) error {
+func (caster *Caster) ListenHTTPS(port, certificate, key string) error {
 	server := &http.Server{
 		Addr:    port,
 		Handler: http.HandlerFunc(caster.RequestHandler),
@@ -48,7 +48,7 @@ func (caster Caster) ListenHTTPS(port, certificate, key string) error {
 }
 
 // RequestHandler function for all incoming HTTP(S) requests
-func (caster Caster) RequestHandler(w http.ResponseWriter, r *http.Request) {
+func (caster *Caster) RequestHandler(w http.ResponseWriter, r *http.Request) {
 	conn := NewConnection(w, r)
 	defer conn.Request.Body.Close()
 
@@ -128,7 +128,7 @@ func (caster Caster) RequestHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // AddMountpoint adds a Mounpoint object to a Casters collection of Mounpoints
-func (caster Caster) AddMountpoint(mount *Mountpoint) (err error) {
+func (caster *Caster) AddMountpoint(mount *Mountpoint) (err error) {
 	caster.Lock()
 	defer caster.Unlock()
 	if _, ok := caster.Mounts[mount.Source.Request.URL.Path]; ok {
@@ -140,7 +140,7 @@ func (caster Caster) AddMountpoint(mount *Mountpoint) (err error) {
 }
 
 // DeleteMountpoint removes a Mounpoint object from a Casters collection of Mounpoints
-func (caster Caster) DeleteMountpoint(id string) {
+func (caster *Caster) DeleteMountpoint(id string) {
 	caster.Lock()
 	defer caster.Unlock()
 	delete(caster.Mounts, id)
@@ -148,7 +148,7 @@ func (caster Caster) DeleteMountpoint(id string) {
 
 // GetMountpoint returns a mount object from the a Casters collection of Mountpoints
 // given it's ID as a string
-func (caster Caster) GetMountpoint(id string) (mount *Mountpoint) {
+func (caster *Caster) GetMountpoint(id string) (mount *Mountpoint) {
 	caster.RLock()
 	defer caster.RUnlock()
 	return caster.Mounts[id]
