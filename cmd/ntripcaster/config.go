@@ -1,22 +1,18 @@
 package main
 
+// Config exists to demonstrate that this responsibility lies with the
+// application implementing the ntrip.caster module and not the module itself
 type Config struct {
-    Http HttpConfig
-    Https HttpsConfig
-    Cognito Cognito
-}
-
-type HttpConfig struct {
-    Port string
-}
-
-type HttpsConfig struct {
-    Port string
-    CertificateFile string
-    PrivateKeyFile string
-}
-
-type Cognito struct {
-    UserPoolId string
-    ClientId string
+	HTTP struct {
+		Port string
+	}
+	HTTPS struct {
+		Port            string
+		CertificateFile string
+		PrivateKeyFile  string
+	}
+	Cognito struct {
+		UserPoolID string
+		ClientID   string
+	}
 }
