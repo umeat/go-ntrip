@@ -2,50 +2,50 @@
 package main
 
 import (
-    "io/ioutil"
-    "fmt"
-    "time"
-    "flag"
-    "github.com/umeat/go-ntrip/ntrip"
+	"flag"
+	"fmt"
+	"github.com/umeat/go-ntrip/ntrip"
+	"io/ioutil"
+	"time"
 )
 
 func main() {
-    source := flag.String("source", "", "NTRIP caster mountpoint to stream from")
-    destination := flag.String("destination", "", "NTRIP caster mountpoint to stream from")
-    timeout := flag.Duration("timeout", 2, "NTRIP reconnect timeout")
-    flag.Parse()
+	source := flag.String("source", "", "NTRIP caster mountpoint to stream from")
+	destination := flag.String("destination", "", "NTRIP caster mountpoint to stream from")
+	timeout := flag.Duration("timeout", 2, "NTRIP reconnect timeout")
+	flag.Parse()
 
-    server, _ := ntrip.NewServer(*destination)
-    go func() {
-        for ; ; time.Sleep(time.Second * *timeout) {
-            resp, err := server.Connect()
-            if err != nil || resp.StatusCode != 200 {
-                fmt.Println("server failed to connect", resp, err)
-                continue
-            }
-            fmt.Println("server connected")
-            ioutil.ReadAll(resp.Body)
-            fmt.Println("server connection died")
-        }
-    }()
+	server, _ := ntrip.NewServer(*destination)
+	go func() {
+		for ; ; time.Sleep(time.Second * *timeout) {
+			resp, err := server.Connect()
+			if err != nil || resp.StatusCode != 200 {
+				fmt.Println("server failed to connect", resp, err)
+				continue
+			}
+			fmt.Println("server connected")
+			ioutil.ReadAll(resp.Body)
+			fmt.Println("server connection died")
+		}
+	}()
 
-    client, _ := ntrip.NewClient(*source)
-    //client.SetBasicAuth(*username, *password)
+	client, _ := ntrip.NewClient(*source)
+	//client.SetBasicAuth(*username, *password)
 
-    for ; ; time.Sleep(time.Second * *timeout) {
-        resp, err := client.Connect()
-        if err != nil || resp.StatusCode != 200 {
-            fmt.Println("client failed to connect", resp, err)
-            continue
-        }
+	for ; ; time.Sleep(time.Second * *timeout) {
+		resp, err := client.Connect()
+		if err != nil || resp.StatusCode != 200 {
+			fmt.Println("client failed to connect", resp, err)
+			continue
+		}
 
-        fmt.Println("client connected")
-        data := make([]byte, 4096)
-        br, err := resp.Body.Read(data)
-        for ; err == nil; br, err = resp.Body.Read(data) {
-            server.Write(data[:br])
-        }
+		fmt.Println("client connected")
+		data := make([]byte, 4096)
+		br, err := resp.Body.Read(data)
+		for ; err == nil; br, err = resp.Body.Read(data) {
+			server.Write(data[:br])
+		}
 
-        fmt.Println("client connection died", err)
-    }
+		fmt.Println("client connection died", err)
+	}
 }
