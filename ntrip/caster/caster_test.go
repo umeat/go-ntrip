@@ -139,7 +139,7 @@ func TestMountpointMethods(t *testing.T) {
 	}
 
 	mount.DeregisterSubscriber(client)
-	if _, exists := mount.Subscribers[client.Id()]; exists {
+	if _, exists := mount.Subscribers[client.ID()]; exists {
 		t.Errorf("failed to deregister subscriber")
 	}
 }
