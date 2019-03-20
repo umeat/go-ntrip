@@ -1,7 +1,8 @@
 # go-ntrip
 NTRIP Caster / Client / Server implementation in Go
 
-[![Coverage Status](https://coveralls.io/repos/github/umeat/go-ntrip/badge.svg?branch=master)](https://coveralls.io/github/umeat/go-ntrip?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/umeat/go-ntrip/badge.svg?branch=master)](https://coveralls.io/github/umeat/go-ntrip?branch=master) 
+[![Go Report Card](https://goreportcard.com/badge/github.com/umeat/go-ntrip)](https://goreportcard.com/report/github.com/umeat/go-ntrip)
 
 ### Installation
 ```
