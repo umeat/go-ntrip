@@ -2,10 +2,10 @@ package main
 
 import (
 	"flag"
-	"github.com/micro/go-config"
 	log "github.com/sirupsen/logrus"
 	"github.com/umeat/go-ntrip/ntrip/caster"
 	"github.com/umeat/go-ntrip/ntrip/caster/authorizers"
+	"github.com/spf13/viper"
 	"time"
 )
 
@@ -23,11 +23,19 @@ func main() {
 	configFile := flag.String("config", "cmd/ntripcaster/caster.json", "Path to config file")
 	flag.Parse()
 
-	config.LoadFile(*configFile)
-	config.Scan(&conf)
+	conf := Config{}
+	viper.SetConfigFile(*configFile)
+	err := viper.ReadInConfig()
+	if err != nil {
+		panic(err)
+	}
+
+	err = viper.Unmarshal(&conf)
+	if err != nil {
+		panic(err)
+	}
 
 	ntripcaster.Authorizer = authorizers.NewCognitoAuthorizer(conf.Cognito.UserPoolID, conf.Cognito.ClientID)
 
-	go func() { panic(ntripcaster.ListenHTTP(conf.HTTP.Port)) }()
-	panic(ntripcaster.ListenHTTPS(conf.HTTPS.Port, conf.HTTPS.CertificateFile, conf.HTTPS.PrivateKeyFile))
+	panic(ntripcaster.ListenHTTP(conf.HTTP.Port))
 }
