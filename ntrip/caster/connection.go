@@ -1,7 +1,7 @@
 package caster
 
 import (
-	"github.com/satori/go.uuid"
+	"github.com/google/uuid"
 	"net/http"
 )
 
@@ -15,7 +15,7 @@ type Connection struct {
 
 // NewConnection constructs a Connection object from a http Request and ResponseWriter
 func NewConnection(w http.ResponseWriter, r *http.Request) (conn *Connection) {
-	requestID := uuid.Must(uuid.NewV4(), nil).String()
+	requestID := uuid.New().String()
 	return &Connection{requestID, make(chan []byte, 10), w, r}
 }
 
